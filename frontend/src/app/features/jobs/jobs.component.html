@@ -1,0 +1,72 @@
+<section class="tool-page">
+  <div class="page-heading">
+    <h1>Ofertas</h1>
+    <p>Busca ofertas reales en portales espanoles de empleo IT usando el perfil detectado de tu CV activo.</p>
+  </div>
+
+  <section class="upload-panel">
+    <div>
+      <h2>Buscar por perfil</h2>
+      <p>La busqueda usa tu tipo de perfil y tus skills principales para traer ofertas de Espana.</p>
+    </div>
+    <button type="button" (click)="searchForProfile()">Buscar ofertas para mi perfil</button>
+  </section>
+
+  @if (statusMessage) {
+    <p class="status">{{ statusMessage }}</p>
+  }
+
+  @if (errorMessage) {
+    <p class="error">{{ errorMessage }}</p>
+  }
+
+  <section class="list">
+    <h2>Ofertas recomendadas</h2>
+
+    @for (item of recommendations; track item.job.id) {
+      <article>
+        <div>
+          <div class="profile-header">
+            <div>
+              <p class="eyebrow">{{ sourceLabel(item.job.source) }} · {{ item.job.modality || 'modalidad no indicada' }}</p>
+              <h3>{{ item.job.title }}</h3>
+              <p>{{ item.job.company || 'Empresa no indicada' }} · {{ item.job.location || 'ubicacion no indicada' }}</p>
+            </div>
+            <span class="profile-status">{{ item.final_score }}%</span>
+          </div>
+
+          <p class="summary">{{ scoreLabel(item) }}</p>
+
+          <p class="summary">{{ summary(item.job.description) }}</p>
+
+          <div class="profile-grid">
+            <div>
+              <h3>Lo que piden</h3>
+              <p>{{ item.job.requirements || 'Sin requisitos estructurados; revisa el enlace original.' }}</p>
+            </div>
+            <div>
+              <h3>Coincide contigo</h3>
+              <p>{{ item.matching_skills.join(', ') || 'Sin coincidencias exactas' }}</p>
+            </div>
+            <div>
+              <h3>IA semantica</h3>
+              <p>Compara el significado completo del CV con el texto de la oferta mediante embeddings.</p>
+            </div>
+            <div>
+              <h3>Falta o penaliza</h3>
+              <p>{{ item.missing_skills.join(', ') || 'Sin faltantes detectados' }}</p>
+            </div>
+          </div>
+
+          @if (item.job.url) {
+            <a class="job-link" [href]="item.job.url" target="_blank" rel="noreferrer">
+              Ver oferta original en {{ sourceLabel(item.job.source) }}
+            </a>
+          }
+        </div>
+      </article>
+    } @empty {
+      <p class="empty">Procesa tu CV y pulsa Buscar ofertas para mi perfil.</p>
+    }
+  </section>
+</section>

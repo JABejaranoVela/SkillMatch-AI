@@ -1,0 +1,14 @@
+[
+  {
+    "title": "Desarrollador Python Junior",
+    "company": "Empresa Demo",
+    "description": "Desarrollo de APIs con Python y SQL para productos de datos.",
+    "requirements": "Python, SQL, FastAPI, Git",
+    "location": "Remoto",
+    "modality": "remote",
+    "source": "sample",
+    "external_id": "sample-python-junior-001",
+    "url": "https://example.com/jobs/sample-python-junior-001"
+  }
+]
+

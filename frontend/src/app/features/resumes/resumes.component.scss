@@ -1,0 +1,169 @@
+.tool-page {
+  display: grid;
+  gap: 22px;
+}
+
+.page-heading h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+.page-heading {
+  display: grid;
+  gap: 8px;
+}
+
+.page-heading p,
+.status,
+.summary,
+.empty,
+article p,
+.upload-panel p,
+.profile-grid p {
+  color: #475569;
+}
+
+.error {
+  color: #b42318;
+  font-weight: 700;
+  margin: 0;
+}
+
+.upload-panel,
+article,
+.profile-panel,
+.list {
+  background: #ffffff;
+  border: 1px solid #d9e0ea;
+  border-radius: 8px;
+  padding: 18px;
+}
+
+.upload-panel,
+article {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.upload-controls {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.list,
+.profile-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.profile-header {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.eyebrow {
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.profile-status {
+  background: #e7f6ef;
+  border: 1px solid #b7e4cf;
+  border-radius: 999px;
+  color: #0f5132;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 6px 10px;
+}
+
+.profile-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 2fr 1fr 1fr;
+}
+
+.profile-grid > div {
+  border-top: 1px solid #e2e8f0;
+  display: grid;
+  gap: 10px;
+  padding-top: 14px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chips span {
+  background: #edf2f7;
+  border: 1px solid #d9e0ea;
+  border-radius: 999px;
+  color: #263445;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px 10px;
+}
+
+button {
+  background: #0f766e;
+  border: 0;
+  border-radius: 6px;
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 700;
+  min-height: 40px;
+  padding: 0 14px;
+}
+
+select,
+input[type="file"] {
+  border: 1px solid #b7c2d0;
+  border-radius: 6px;
+  min-height: 40px;
+  min-width: min(100%, 320px);
+  padding: 8px 10px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.job-link {
+  color: #0f766e;
+  display: inline-flex;
+  font-weight: 800;
+  margin-top: 14px;
+  text-decoration: none;
+}
+
+@media (max-width: 820px) {
+  .upload-panel,
+  article,
+  .profile-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .upload-controls {
+    justify-content: flex-start;
+  }
+}

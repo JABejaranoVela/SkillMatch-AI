@@ -1,0 +1,187 @@
+[
+  {
+    "name": "Java",
+    "category": "programming_language",
+    "aliases": ["java se", "java ee"]
+  },
+  {
+    "name": "Python",
+    "category": "programming_language",
+    "aliases": ["python3", "scripting python"]
+  },
+  {
+    "name": "TypeScript",
+    "category": "programming_language",
+    "aliases": ["typescript"]
+  },
+  {
+    "name": "JavaScript",
+    "category": "programming_language",
+    "aliases": ["javascript", "js"]
+  },
+  {
+    "name": "SQL",
+    "category": "database",
+    "aliases": ["sql"]
+  },
+  {
+    "name": "MySQL",
+    "category": "database",
+    "aliases": ["mysql"]
+  },
+  {
+    "name": "SQLite",
+    "category": "database",
+    "aliases": ["sqlite"]
+  },
+  {
+    "name": "TiDB Cloud",
+    "category": "database",
+    "aliases": ["tidb", "tidb cloud"]
+  },
+  {
+    "name": "Spring Boot",
+    "category": "backend",
+    "aliases": ["springboot", "spring"]
+  },
+  {
+    "name": "FastAPI",
+    "category": "backend",
+    "aliases": ["fast api"]
+  },
+  {
+    "name": "Node.js",
+    "category": "backend",
+    "aliases": ["nodejs", "node"]
+  },
+  {
+    "name": "API REST",
+    "category": "backend",
+    "aliases": ["rest api", "api rest", "apis", "endpoints", "diseño de apis", "diseno de apis"]
+  },
+  {
+    "name": "JWT",
+    "category": "security",
+    "aliases": ["json web token", "autenticacion mediante jwt", "autorizacion mediante jwt"]
+  },
+  {
+    "name": "Swagger/OpenAPI",
+    "category": "api_documentation",
+    "aliases": ["swagger", "openapi", "open api"]
+  },
+  {
+    "name": "Angular",
+    "category": "frontend",
+    "aliases": ["angular framework"]
+  },
+  {
+    "name": "Vue",
+    "category": "frontend",
+    "aliases": ["vue.js", "vuejs"]
+  },
+  {
+    "name": "HTML",
+    "category": "frontend",
+    "aliases": ["html5"]
+  },
+  {
+    "name": "CSS",
+    "category": "frontend",
+    "aliases": ["css3", "scss", "sass"]
+  },
+  {
+    "name": "Docker",
+    "category": "devops",
+    "aliases": ["docker compose", "contenedorizado", "contenedores"]
+  },
+  {
+    "name": "GitHub Actions",
+    "category": "devops",
+    "aliases": ["github actions", "ci con github actions"]
+  },
+  {
+    "name": "CI/CD",
+    "category": "devops",
+    "aliases": ["ci/cd", "integracion continua", "despliegue continuo"]
+  },
+  {
+    "name": "Git",
+    "category": "tools",
+    "aliases": ["control de versiones"]
+  },
+  {
+    "name": "GitHub",
+    "category": "tools",
+    "aliases": ["github"]
+  },
+  {
+    "name": "Maven",
+    "category": "tools",
+    "aliases": ["maven"]
+  },
+  {
+    "name": "npm",
+    "category": "tools",
+    "aliases": ["npm"]
+  },
+  {
+    "name": "Allure Report",
+    "category": "testing",
+    "aliases": ["allure", "allure report"]
+  },
+  {
+    "name": "Schemathesis",
+    "category": "testing",
+    "aliases": ["schemathesis"]
+  },
+  {
+    "name": "API Testing",
+    "category": "testing",
+    "aliases": ["pruebas de api", "testeo de endpoints", "testing de api"]
+  },
+  {
+    "name": "CRUD",
+    "category": "backend",
+    "aliases": ["crear, editar y eliminar", "alta/edición/borrado", "alta/edicion/borrado"]
+  },
+  {
+    "name": "JSON",
+    "category": "data_format",
+    "aliases": ["json"]
+  },
+  {
+    "name": "CLI",
+    "category": "tools",
+    "aliases": ["linea de comandos", "línea de comandos"]
+  },
+  {
+    "name": "Render",
+    "category": "deployment",
+    "aliases": ["render"]
+  },
+  {
+    "name": "Netlify",
+    "category": "deployment",
+    "aliases": ["netlify"]
+  },
+  {
+    "name": "Slack",
+    "category": "tools",
+    "aliases": ["slack"]
+  },
+  {
+    "name": "Machine Learning",
+    "category": "ai",
+    "aliases": ["aprendizaje automatico", "aprendizaje automático", "ml"]
+  },
+  {
+    "name": "Estructuras de Datos",
+    "category": "computer_science",
+    "aliases": ["estructuras de datos"]
+  },
+  {
+    "name": "Análisis de Algoritmos",
+    "category": "computer_science",
+    "aliases": ["analisis de algoritmos", "análisis de algoritmos", "big-o", "big o"]
+  }
+]

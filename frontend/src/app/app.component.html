@@ -1,0 +1,18 @@
+<header class="app-header">
+  <a class="brand" routerLink="/">SkillMatch AI</a>
+  <nav aria-label="Principal">
+    @if (authenticated$ | async) {
+      <a routerLink="/resumes">CV</a>
+      <a routerLink="/jobs">Ofertas</a>
+      <a routerLink="/matching">Matching</a>
+      <button type="button" class="nav-button" (click)="logout()">Salir</button>
+    } @else {
+      <a routerLink="/login">Login</a>
+      <a routerLink="/register">Registro</a>
+    }
+  </nav>
+</header>
+
+<main>
+  <router-outlet />
+</main>

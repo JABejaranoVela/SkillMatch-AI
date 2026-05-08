@@ -1,0 +1,80 @@
+<section class="tool-page">
+  <div class="page-heading">
+    <h1>CV</h1>
+    <p>Sube tu curriculum. El sistema mantendra un unico CV activo y generara el perfil a partir de ese archivo.</p>
+  </div>
+
+  <section class="upload-panel">
+    <div>
+      <h2>1. Subir CV activo</h2>
+      <p>Formatos admitidos: PDF o DOCX. Si subes otro CV, sustituira al anterior.</p>
+    </div>
+    <div class="upload-controls">
+      <input type="file" accept=".pdf,.docx" (change)="onFileSelected($event)">
+      <button type="button" (click)="upload()">Subir CV</button>
+    </div>
+  </section>
+
+  @if (statusMessage) {
+    <p class="status">{{ statusMessage }}</p>
+  }
+
+  @if (errorMessage) {
+    <p class="error">{{ errorMessage }}</p>
+  }
+
+  <section class="list">
+    <h2>2. CV activo</h2>
+    @for (resume of resumes; track resume.id) {
+      <article>
+        <div>
+          <h3>{{ resume.filename }}</h3>
+          <p>Estado: {{ resume.status }} · Tipo: {{ resume.file_type }}</p>
+        </div>
+        <button type="button" (click)="process(resume.id)">Procesar y detectar perfil</button>
+      </article>
+    } @empty {
+      <p class="empty">Todavia no hay un CV activo. Sube uno para empezar.</p>
+    }
+  </section>
+
+  <section class="profile-panel">
+    <div class="profile-header">
+      <div>
+        <p class="eyebrow">3. Resultado del analisis</p>
+        <h2>{{ profile?.profile_type || 'Perfil pendiente' }}</h2>
+      </div>
+      <span class="profile-status">{{ profile ? 'Procesado' : 'Sin procesar' }}</span>
+    </div>
+
+    @if (profile) {
+      <p class="summary">{{ profile.summary }}</p>
+
+      <div class="profile-grid">
+        <div>
+          <h3>Skills detectadas</h3>
+          <div class="chips">
+            @for (skill of profile.technologies || []; track skill) {
+              <span>{{ skill }}</span>
+            } @empty {
+              <p class="empty">No se detectaron skills tecnicas.</p>
+            }
+          </div>
+        </div>
+
+        <div>
+          <h3>Idiomas</h3>
+          <p>{{ profile.languages?.join(', ') || 'No detectado' }}</p>
+        </div>
+
+        <div>
+          <h3>Formacion</h3>
+          <p>{{ profile.education?.['raw'] || 'No detectada' }}</p>
+        </div>
+      </div>
+    } @else {
+      <p class="summary">Pulsa Procesar y detectar perfil para extraer conocimientos, habilidades, idiomas y formacion.</p>
+    }
+  </section>
+</section>
+

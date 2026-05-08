@@ -1,0 +1,44 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: skillmatch-db
+    environment:
+      POSTGRES_DB: skillmatch
+      POSTGRES_USER: skillmatch
+      POSTGRES_PASSWORD: skillmatch
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  backend:
+    build:
+      context: ./backend
+    container_name: skillmatch-backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://skillmatch:skillmatch@db:5432/skillmatch
+      BACKEND_CORS_ORIGINS: '["http://localhost:4200"]'
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/app:/app/app
+      - ./data:/app/data
+      - ./storage:/app/storage
+    depends_on:
+      - db
+
+  frontend:
+    image: node:20-alpine
+    container_name: skillmatch-frontend
+    working_dir: /app
+    command: sh -c "npm install && npm start"
+    ports:
+      - "4200:4200"
+    volumes:
+      - ./frontend:/app
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

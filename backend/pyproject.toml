@@ -1,0 +1,38 @@
+[project]
+name = "skillmatch-ai-backend"
+version = "0.1.0"
+description = "Backend FastAPI para SkillMatch AI"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+  "alembic>=1.13.0",
+  "bcrypt>=4.1.0,<5.0.0",
+  "fastapi[standard]>=0.115.0",
+  "httpx>=0.28.0",
+  "email-validator>=2.2.0",
+  "passlib[bcrypt]>=1.7.4",
+  "pgvector>=0.3.0",
+  "psycopg[binary]>=3.2.0",
+  "pydantic-settings>=2.6.0",
+  "python-docx>=1.1.2",
+  "python-jose[cryptography]>=3.3.0",
+  "pymupdf>=1.24.0",
+  "sqlalchemy>=2.0.0",
+  "sentence-transformers>=3.0.0",
+  "spacy>=3.7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "httpx>=0.27.0",
+  "pytest>=8.0.0",
+  "pytest-asyncio>=0.23.0",
+  "ruff>=0.6.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
