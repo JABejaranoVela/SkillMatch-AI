@@ -74,6 +74,60 @@ El MVP debe permitir:
 - Documentar endpoints relevantes mediante OpenAPI/FastAPI.
 - Anadir tests al cerrar cada comportamiento critico.
 
+## Sistema Visual
+
+Toda modificacion visual del frontend debe partir de los tokens definidos en `frontend/src/styles.scss`. No usar colores hexadecimales, sombras, radios ni fuentes nuevas directamente en componentes salvo que antes se registren como token global y se documenten aqui.
+
+### Fuente
+
+- Fuente unica de la aplicacion: `Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`.
+- Usar `var(--font-family-base)` indirectamente desde `:root`; no declarar `font-family` en componentes salvo caso excepcional.
+
+### Colores Base
+
+- Fondo de pagina: `--color-bg` (`#f5f7fa`).
+- Superficie principal: `--color-surface` (`#ffffff`).
+- Superficie suave: `--color-surface-soft` (`#f8fafc`).
+- Bordes: `--color-border` (`#e2e8f0`) y `--color-border-strong` (`#d0d5dd`).
+- Texto principal: `--color-text` (`#18202f`).
+- Titulos: `--color-heading` (`#101828`).
+- Texto secundario: `--color-muted` (`#667085`).
+- Texto de cuerpo/menus: `--color-body` (`#344054`).
+
+### Colores De Marca Y Estados
+
+- Primario/brand: `--color-primary` (`#047857`).
+- Primario fuerte para botones/iconos: `--color-primary-strong` (`#0f766e`).
+- Primario suave para fondos activos: `--color-primary-soft` (`#ecfdf5`).
+- Chips verdes: `--color-primary-chip` (`#dff5ee`).
+- Bordes verdes: `--color-primary-border` (`#b7e4cf`).
+- Acento naranja para perfil detectado: `--color-accent` (`#f97316`).
+- Fondo acento: `--color-accent-soft` (`#fff7ed`).
+- Borde acento: `--color-accent-border` (`#fed7aa`).
+- Informacion azul: `--color-info` (`#2563eb`) y `--color-info-soft` (`#eff6ff`).
+- Exito: `--color-success` (`#15803d`) y `--color-success-soft` (`#dcfce7`).
+- Error: `--color-danger` (`#b42318`) y `--color-danger-soft` (`#fff1f2`).
+- Documento PDF: `--color-document-pdf` (`#ef4444`).
+
+### Radios, Sombras Y Espaciado
+
+- Radio pequeno: `--radius-sm` (`8px`).
+- Radio medio: `--radius-md` (`10px`).
+- Radio grande de tarjetas/paneles: `--radius-lg` (`14px`).
+- Pastillas/chips: `--radius-pill` (`999px`).
+- Sombra header: `--shadow-sm`.
+- Sombra tarjetas: `--shadow-md`.
+- Sombra panel desplegable: `--shadow-lg`.
+- Padding horizontal de pagina: `--page-padding`.
+
+### Reglas De Uso
+
+- Botones primarios: fondo con `--color-primary-strong` o gradiente registrado basado en primarios.
+- Estados activos de navegacion: `--color-primary` y `--color-primary-soft`.
+- Tarjetas: `--color-surface`, `--color-border`, `--radius-lg`, `--shadow-md`.
+- Texto informativo: `--color-muted`.
+- No introducir paletas nuevas por pantalla; si hace falta un color nuevo, justificarlo y registrarlo aqui.
+
 ## Estado
 
 Consultar `docs/estado-actual.md` antes de continuar. El stack Docker queda preparado con frontend en `http://localhost:4200` y backend en `http://localhost:8000`.

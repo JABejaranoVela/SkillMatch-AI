@@ -181,18 +181,57 @@ button:hover,
   overflow-wrap: anywhere;
 }
 
-.pdf-icon {
+.file-copy {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.file-meta {
   align-items: center;
-  border: 2px solid #ef4444;
-  border-radius: 8px;
-  color: #ef4444;
-  display: inline-flex;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.meta-dot {
+  background: var(--color-muted);
+  border-radius: var(--radius-pill);
+  height: 4px;
+  opacity: 0.75;
+  width: 4px;
+}
+
+.pdf-icon {
+  color: var(--color-document-pdf);
   flex: 0 0 auto;
+  height: 68px;
+  width: 62px;
+}
+
+.pdf-icon svg {
+  display: block;
+  height: 68px;
+  width: 62px;
+}
+
+.pdf-page,
+.pdf-fold {
+  fill: var(--color-surface);
+  stroke: currentColor;
+  stroke-linejoin: round;
+  stroke-width: 2.6;
+}
+
+.pdf-fold {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.pdf-icon text {
+  fill: currentColor;
   font-size: 12px;
   font-weight: 900;
-  height: 48px;
-  justify-content: center;
-  width: 42px;
 }
 
 .file-actions {
@@ -537,26 +576,22 @@ button:hover,
 }
 
 .target-icon {
-  background: #e7f6ef;
-  border: 1px solid #c8eadf;
+  background: var(--color-primary-soft);
+  border: 1px solid var(--color-primary-border);
   border-radius: 999px;
   flex: 0 0 auto;
   height: 62px;
-  position: relative;
   width: 62px;
 }
 
-.target-icon::before,
-.target-icon::after {
-  border: 3px solid #0f766e;
-  border-radius: 999px;
-  content: "";
-  inset: 13px;
-  position: absolute;
-}
-
-.target-icon::after {
-  inset: 24px;
+.target-icon svg {
+  fill: none;
+  height: 40px;
+  stroke: var(--color-primary-strong);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3;
+  width: 40px;
 }
 
 .empty-analysis {

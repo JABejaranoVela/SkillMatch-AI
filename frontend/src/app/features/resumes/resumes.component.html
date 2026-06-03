@@ -47,13 +47,19 @@
   @if (activeResume) {
     <section class="file-card">
       <div class="file-main">
-        <div class="pdf-icon">PDF</div>
-        <div>
+        <span class="pdf-icon" aria-hidden="true">
+          <svg viewBox="0 0 56 64">
+            <path class="pdf-page" d="M8 3h31l10 10v48H8z"></path>
+            <path class="pdf-fold" d="M39 3v10h10"></path>
+            <text x="28" y="42" text-anchor="middle">PDF</text>
+          </svg>
+        </span>
+        <div class="file-copy">
           <h2>{{ activeResume.filename }}</h2>
-          <p>
-            Subido el {{ activeResume.created_at | date:'d MMM y, HH:mm' }}
-            <span aria-hidden="true">-</span>
-            {{ fileSizeLabel(uploadedFileSize) }}
+          <p class="file-meta">
+            <span>Subido el {{ activeResume.created_at | date:'d MMM y, HH:mm' }}</span>
+            <span class="meta-dot" aria-hidden="true"></span>
+            <span>{{ fileSizeLabel(uploadedFileSize) }}</span>
           </p>
         </div>
       </div>
@@ -203,7 +209,15 @@
       </div>
 
       <section class="next-step-card">
-        <div class="target-icon" aria-hidden="true"></div>
+        <span class="target-icon" aria-hidden="true">
+          <svg viewBox="0 0 64 64">
+            <circle cx="32" cy="32" r="23"></circle>
+            <circle cx="32" cy="32" r="13"></circle>
+            <circle cx="32" cy="32" r="3"></circle>
+            <path d="M32 32l13-13"></path>
+            <path d="M39 19h6v6"></path>
+          </svg>
+        </span>
         <div>
           <h2>Siguiente paso</h2>
           <p>Descubre ofertas que se ajustan a tu perfil y da el siguiente paso en tu carrera profesional.</p>
