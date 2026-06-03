@@ -1,0 +1,78 @@
+{
+  "categories": {
+    "ai": {
+      "label": "IA y datos",
+      "keywords": ["ai", "ia", "ml", "machine learning", "nlp", "llm", "modelo", "datos"]
+    },
+    "api_documentation": {
+      "label": "Documentacion API",
+      "keywords": ["swagger", "openapi", "documentacion api"]
+    },
+    "architecture": {
+      "label": "Arquitectura",
+      "keywords": ["arquitectura", "microservicios", "clean", "hexagonal"]
+    },
+    "backend": {
+      "label": "Backend",
+      "keywords": ["backend", "api", "spring", "fastapi", "django", "flask", "node", "graphql"]
+    },
+    "cloud": {
+      "label": "Cloud",
+      "keywords": ["cloud", "aws", "azure", "gcp", "lambda", "s3", "ec2", "firebase"]
+    },
+    "data_engineering": {
+      "label": "Data engineering",
+      "keywords": ["kafka", "spark", "airflow", "hadoop", "etl", "pipeline", "streaming", "databricks"]
+    },
+    "database": {
+      "label": "Bases de datos",
+      "keywords": ["sql", "postgres", "mysql", "mongodb", "redis", "oracle", "database", "snowflake"]
+    },
+    "devops": {
+      "label": "DevOps",
+      "keywords": ["docker", "kubernetes", "terraform", "jenkins", "ci/cd", "nginx"]
+    },
+    "frontend": {
+      "label": "Frontend",
+      "keywords": ["frontend", "angular", "react", "vue", "html", "css", "typescript"]
+    },
+    "programming_language": {
+      "label": "Lenguajes",
+      "keywords": ["java", "python", "javascript", "typescript", "php", "c#", "go", "kotlin"]
+    },
+    "security": {
+      "label": "Seguridad",
+      "keywords": ["jwt", "oauth", "seguridad", "auth", "autenticacion"]
+    },
+    "testing": {
+      "label": "Testing",
+      "keywords": ["test", "testing", "pytest", "junit", "allure"]
+    },
+    "tools": {
+      "label": "Herramientas",
+      "keywords": ["git", "github", "maven", "gradle", "postman", "npm"]
+    }
+  },
+  "canonical_aliases": {
+    "amazon web services": "AWS",
+    "apache kafka": "Apache Kafka",
+    "apache spark": "Apache Spark",
+    "fast api": "FastAPI",
+    "google cloud platform": "Google Cloud",
+    "graphql": "GraphQL",
+    "k8s": "Kubernetes",
+    "nodejs": "Node.js",
+    "postgre sql": "PostgreSQL",
+    "postgres": "PostgreSQL",
+    "py torch": "PyTorch",
+    "rabbit mq": "RabbitMQ",
+    "scikit learn": "scikit-learn",
+    "springboot": "Spring Boot",
+    "tailwindcss": "Tailwind CSS"
+  },
+  "review_thresholds": {
+    "dictionary": 1.0,
+    "ner": 0.72,
+    "pattern": 0.55
+  }
+}

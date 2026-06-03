@@ -31,6 +31,7 @@ def process_resume(db: Session, resume: Resume) -> ProfessionalProfile:
         profile.education = profile_data["education"]
         profile.languages = profile_data["languages"]
         profile.technologies = profile_data["technologies"]
+        profile.analysis = profile_data["analysis"]
         profile.embedding = None
         ensure_profile_embedding(profile, clean_text)
         db.add(profile)

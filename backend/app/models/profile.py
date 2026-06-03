@@ -18,6 +18,7 @@ class ProfessionalProfile(Base):
     education: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     languages: Mapped[list | None] = mapped_column(JSON, nullable=True)
     technologies: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    analysis: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     embedding: Mapped[list | None] = mapped_column(Vector(384), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 

@@ -14,6 +14,27 @@ export interface Resume {
   processed_at: string | null;
 }
 
+export interface ProfileScore {
+  name: string;
+  score: number;
+  raw_score?: number;
+  matched_skills: string[];
+  matched_signals: string[];
+}
+
+export interface ProfileAnalysis {
+  primary_profile: ProfileScore | null;
+  secondary_profile: ProfileScore | null;
+  profile_scores: ProfileScore[];
+  skill_categories: Record<string, string[]>;
+  skill_sources: {
+    dictionary: number;
+    ner: number;
+    pattern: number;
+    total: number;
+  };
+}
+
 export interface ProfessionalProfile {
   id: number;
   profile_type: string | null;
@@ -22,6 +43,7 @@ export interface ProfessionalProfile {
   education: Record<string, unknown> | null;
   languages: string[] | null;
   technologies: string[] | null;
+  analysis: ProfileAnalysis | null;
 }
 
 @Injectable({ providedIn: 'root' })

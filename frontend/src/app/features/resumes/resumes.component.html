@@ -1,80 +1,227 @@
-<section class="tool-page">
+<section class="cv-page">
   <div class="page-heading">
-    <h1>CV</h1>
-    <p>Sube tu curriculum. El sistema mantendra un unico CV activo y generara el perfil a partir de ese archivo.</p>
+    <h1>Sube tu CV</h1>
+    <p>Sube tu currículum en formato PDF para analizar tu perfil profesional y detectar tus principales aptitudes.</p>
   </div>
 
-  <section class="upload-panel">
-    <div>
-      <h2>1. Subir CV activo</h2>
-      <p>Formatos admitidos: PDF o DOCX. Si subes otro CV, sustituira al anterior.</p>
-    </div>
-    <div class="upload-controls">
-      <input type="file" accept=".pdf,.docx" (change)="onFileSelected($event)">
-      <button type="button" (click)="upload()">Subir CV</button>
+  <section
+    class="upload-card"
+    [class.dragging]="isDragging"
+    [class.busy]="isBusy"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave()"
+    (drop)="onDrop($event)"
+  >
+    <div class="drop-zone">
+      <svg class="upload-icon" viewBox="0 0 64 48" aria-hidden="true">
+        <path d="M22 38H18a13 13 0 0 1 0-26 16 16 0 0 1 30 5 10.5 10.5 0 0 1-2 21h-4"></path>
+        <path d="M32 39V22"></path>
+        <path d="m24 30 8-8 8 8"></path>
+      </svg>
+      <h2>Arrastra tu CV aquí o selecciónalo desde tu equipo</h2>
+      <p>Formato admitido: PDF</p>
+      <label class="primary-action">
+        <input type="file" accept=".pdf,application/pdf" (change)="onFileSelected($event)" [disabled]="isBusy">
+        <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"></path>
+          <path d="M14 3v5h5"></path>
+          <path d="M9 15h6"></path>
+          <path d="M9 11h2"></path>
+        </svg>
+        Seleccionar PDF
+      </label>
     </div>
   </section>
 
-  @if (statusMessage) {
-    <p class="status">{{ statusMessage }}</p>
+  @if (statusMessage || errorMessage) {
+    <div class="message-row">
+      @if (statusMessage) {
+        <p class="status">{{ statusMessage }}</p>
+      }
+      @if (errorMessage) {
+        <p class="error">{{ errorMessage }}</p>
+      }
+    </div>
   }
 
-  @if (errorMessage) {
-    <p class="error">{{ errorMessage }}</p>
-  }
-
-  <section class="list">
-    <h2>2. CV activo</h2>
-    @for (resume of resumes; track resume.id) {
-      <article>
+  @if (activeResume) {
+    <section class="file-card">
+      <div class="file-main">
+        <div class="pdf-icon">PDF</div>
         <div>
-          <h3>{{ resume.filename }}</h3>
-          <p>Estado: {{ resume.status }} · Tipo: {{ resume.file_type }}</p>
+          <h2>{{ activeResume.filename }}</h2>
+          <p>
+            Subido el {{ activeResume.created_at | date:'d MMM y, HH:mm' }}
+            <span aria-hidden="true">-</span>
+            {{ fileSizeLabel(uploadedFileSize) }}
+          </p>
         </div>
-        <button type="button" (click)="process(resume.id)">Procesar y detectar perfil</button>
-      </article>
-    } @empty {
-      <p class="empty">Todavia no hay un CV activo. Sube uno para empezar.</p>
-    }
-  </section>
-
-  <section class="profile-panel">
-    <div class="profile-header">
-      <div>
-        <p class="eyebrow">3. Resultado del analisis</p>
-        <h2>{{ profile?.profile_type || 'Perfil pendiente' }}</h2>
       </div>
-      <span class="profile-status">{{ profile ? 'Procesado' : 'Sin procesar' }}</span>
-    </div>
+
+      <div class="file-actions">
+        <span class="state-pill" [ngClass]="statusClass(activeResume.status)">
+          {{ statusLabel(isProcessing ? 'processing' : activeResume.status) }}
+        </span>
+        @if (activeResume.status !== 'processed' && !isProcessing) {
+          <button type="button" class="ghost-button" (click)="process(activeResume.id)">Analizar CV</button>
+        }
+        @if (activeResume.status === 'processed' && !isProcessing) {
+          <button type="button" class="ghost-button" (click)="process(activeResume.id)">Reanalizar CV</button>
+        }
+      </div>
+    </section>
+  }
+
+  <section class="analysis-section">
+    <h2>Resultado del análisis</h2>
 
     @if (profile) {
-      <p class="summary">{{ profile.summary }}</p>
-
-      <div class="profile-grid">
-        <div>
-          <h3>Skills detectadas</h3>
-          <div class="chips">
-            @for (skill of profile.technologies || []; track skill) {
-              <span>{{ skill }}</span>
-            } @empty {
-              <p class="empty">No se detectaron skills tecnicas.</p>
+      <article class="profile-card">
+        <div class="profile-icon" aria-hidden="true"></div>
+        <div class="profile-copy">
+          <p class="eyebrow">Perfil detectado</p>
+          <h3>{{ profile.profile_type || 'Perfil tecnico general' }}</h3>
+          <p>{{ profile.summary || 'Perfil profesional generado a partir del CV activo.' }}</p>
+          <div class="profile-scores">
+            @for (profileScore of topProfileScores(); track profileScore.name; let index = $index) {
+              <div class="score-card" [class.primary-score]="index === 0">
+                <span>{{ profileRankLabel(index) }}</span>
+                <strong>{{ profileScore.name }}</strong>
+                <em>{{ profileScoreLabel(profileScore.score) }}</em>
+              </div>
             }
           </div>
         </div>
+        <span class="affinity-pill">{{ profileBadge() }}</span>
+      </article>
 
-        <div>
-          <h3>Idiomas</h3>
-          <p>{{ profile.languages?.join(', ') || 'No detectado' }}</p>
-        </div>
+      <div class="insight-grid">
+        <article class="insight-card skills-card">
+          <div class="card-heading">
+            <span class="mini-icon code-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="m8 9-4 3 4 3"></path>
+                <path d="m16 9 4 3-4 3"></path>
+                <path d="m14 5-4 14"></path>
+              </svg>
+            </span>
+            <h3>Aptitudes detectadas</h3>
+          </div>
+          @if (skillCategoryGroups().length) {
+            <div class="category-groups">
+              @for (group of skillCategoryGroups(); track group.category) {
+                <div class="category-group">
+                  <h4>{{ group.label }}</h4>
+                  <div class="chips">
+                    @for (skill of group.skills; track skill) {
+                      <span>{{ skill }}</span>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="chips">
+              @for (skill of visibleSkills; track skill) {
+                <span>{{ skill }}</span>
+              } @empty {
+                <p class="empty">No se detectaron aptitudes suficientes.</p>
+              }
+            </div>
+            @if (hasHiddenSkills || showAllSkills) {
+              <button type="button" class="text-button" (click)="toggleSkills()">
+                {{ showAllSkills ? 'Ver menos aptitudes' : 'Ver todas las aptitudes' }}
+              </button>
+            }
+          }
+        </article>
 
-        <div>
-          <h3>Formacion</h3>
-          <p>{{ profile.education?.['raw'] || 'No detectada' }}</p>
-        </div>
+        <article class="insight-card compact-card">
+          <div class="card-heading">
+            <span class="mini-icon globe-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="9"></circle>
+                <path d="M3 12h18"></path>
+                <path d="M12 3a14 14 0 0 1 0 18"></path>
+                <path d="M12 3a14 14 0 0 0 0 18"></path>
+              </svg>
+            </span>
+            <h3>Idiomas</h3>
+          </div>
+          <ul class="detail-list">
+            @for (language of languages(); track language) {
+              <li>
+                <span>{{ language }}</span>
+                <strong>{{ languageLevel(language) }}</strong>
+              </li>
+            } @empty {
+              <li>
+                <span>No detectado</span>
+              </li>
+            }
+          </ul>
+        </article>
+
+        <article class="insight-card compact-card">
+          <div class="card-heading">
+            <span class="mini-icon education-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="m3 8 9-4 9 4-9 4Z"></path>
+                <path d="M7 11v5c0 1.7 2.2 3 5 3s5-1.3 5-3v-5"></path>
+                <path d="M21 8v6"></path>
+              </svg>
+            </span>
+            <h3>Formación</h3>
+          </div>
+          <ul class="detail-list education-list">
+            @for (education of educationItems(); track education) {
+              <li>
+                <span>{{ education }}</span>
+              </li>
+            } @empty {
+              <li>
+                <span>Formación no detectada</span>
+              </li>
+            }
+          </ul>
+        </article>
+
+        <article class="insight-card compact-card">
+          <div class="card-heading">
+            <span class="mini-icon work-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M10 6h4a2 2 0 0 1 2 2v1H8V8a2 2 0 0 1 2-2Z"></path>
+                <path d="M4 9h16v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"></path>
+                <path d="M9 13h6"></path>
+              </svg>
+            </span>
+            <h3>Experiencia</h3>
+          </div>
+          <p class="experience-value">{{ experienceLabel() }}</p>
+          <p class="detail-text">{{ profile.profile_type || 'Perfil profesional detectado' }}</p>
+        </article>
       </div>
+
+      <section class="next-step-card">
+        <div class="target-icon" aria-hidden="true"></div>
+        <div>
+          <h2>Siguiente paso</h2>
+          <p>Descubre ofertas que se ajustan a tu perfil y da el siguiente paso en tu carrera profesional.</p>
+        </div>
+        <a routerLink="/jobs" class="primary-action link-action">
+          Ver ofertas compatibles
+          <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9 18l6-6-6-6"></path>
+          </svg>
+        </a>
+      </section>
     } @else {
-      <p class="summary">Pulsa Procesar y detectar perfil para extraer conocimientos, habilidades, idiomas y formacion.</p>
+      <div class="empty-analysis">
+        <h3>{{ isBusy ? 'Analizando tu perfil profesional' : 'Análisis pendiente' }}</h3>
+        <p>
+          {{ isBusy ? 'Estamos extrayendo aptitudes, formacion, idiomas y experiencia del CV.' : 'Sube un PDF para detectar tu perfil profesional y tus aptitudes principales.' }}
+        </p>
+      </div>
     }
   </section>
 </section>
-

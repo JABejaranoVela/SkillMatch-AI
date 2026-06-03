@@ -64,8 +64,10 @@ El MVP debe permitir:
 - Versionar el algoritmo de matching en cada resultado.
 - Tratar CVs como datos personales: validar archivos, limitar acceso por usuario y no exponer rutas internas.
 - Mantener un unico CV activo por usuario en el MVP; las recomendaciones se calculan solo con ese CV activo.
-- Inferir un `profile_type` desde el CV para orientar la busqueda y explicar el tipo de perfil detectado.
-- La extraccion no entrena modelos: usa texto extraido, diccionario de skills, regex y reglas.
+- Inferir un `profile_type` principal y un perfil secundario desde el CV para orientar la busqueda y explicar el tipo de perfil detectado.
+- La extraccion no entrena modelos propios: usa texto extraido, diccionario ampliado de skills, regex, deteccion conservadora de terminos tecnicos no registrados, taxonomia local y NER opcional con GLiNER si la dependencia `ner` esta instalada.
+- Pipeline de skills: diccionario fiable (`source=dictionary`) -> patrones tecnicos (`source=pattern`) -> NER opcional (`source=ner`) -> normalizacion canonica -> clasificacion por taxonomia -> guardado con confianza.
+- Guardar en `professional_profiles.analysis` las puntuaciones por perfil, evidencias usadas, skills agrupadas por categoria y origen de deteccion (`dictionary` o `pattern`).
 - El matching actual usa ML preentrenado mediante embeddings `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` y pgvector.
 - Score actual: 65% reglas de skills + 35% similitud semantica CV-oferta.
 - No mostrar ofertas de Arbeitnow en el flujo principal porque trae demasiadas ofertas de Alemania. Para el MVP, `/jobs/recommended` y `/matching/active` filtran por `source = tecnoempleo`.

@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     MATCHING_ALGORITHM_VERSION: str = "hybrid-rules-semantic-v1"
     EMBEDDINGS_MODEL_NAME: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     EMBEDDINGS_ENABLED: bool = True
+    SKILL_NER_ENABLED: bool = False
+    SKILL_NER_MODEL_NAME: str = "urchade/gliner_medium-v2.1"
     REMOTIVE_API_URL: str = "https://remotive.com/api/remote-jobs"
     REMOTIVE_DEFAULT_SEARCH: str = "python"
     REMOTIVE_IMPORT_LIMIT: int = 25

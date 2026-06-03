@@ -2,7 +2,7 @@
   {
     "name": "Java",
     "category": "programming_language",
-    "aliases": ["java se", "java ee"]
+    "aliases": ["java se", "java ee", "jdk"]
   },
   {
     "name": "Python",
@@ -12,17 +12,27 @@
   {
     "name": "TypeScript",
     "category": "programming_language",
-    "aliases": ["typescript"]
+    "aliases": ["typescript", "ts"]
   },
   {
     "name": "JavaScript",
     "category": "programming_language",
-    "aliases": ["javascript", "js"]
+    "aliases": ["javascript", "js", "ecmascript"]
   },
   {
     "name": "SQL",
     "category": "database",
-    "aliases": ["sql"]
+    "aliases": ["sql", "consultas sql"]
+  },
+  {
+    "name": "NoSQL",
+    "category": "database",
+    "aliases": ["no sql", "bases de datos nosql"]
+  },
+  {
+    "name": "PostgreSQL",
+    "category": "database",
+    "aliases": ["postgres", "postgre sql"]
   },
   {
     "name": "MySQL",
@@ -35,6 +45,21 @@
     "aliases": ["sqlite"]
   },
   {
+    "name": "MongoDB",
+    "category": "database",
+    "aliases": ["mongo db", "mongo"]
+  },
+  {
+    "name": "Redis",
+    "category": "database",
+    "aliases": ["redis cache"]
+  },
+  {
+    "name": "Oracle Database",
+    "category": "database",
+    "aliases": ["oracle db", "oracle database", "oracle sql"]
+  },
+  {
     "name": "TiDB Cloud",
     "category": "database",
     "aliases": ["tidb", "tidb cloud"]
@@ -45,9 +70,34 @@
     "aliases": ["springboot", "spring"]
   },
   {
+    "name": "Spring Security",
+    "category": "backend",
+    "aliases": ["spring security"]
+  },
+  {
+    "name": "Hibernate",
+    "category": "backend",
+    "aliases": ["hibernate orm"]
+  },
+  {
+    "name": "JPA",
+    "category": "backend",
+    "aliases": ["java persistence api"]
+  },
+  {
     "name": "FastAPI",
     "category": "backend",
     "aliases": ["fast api"]
+  },
+  {
+    "name": "Flask",
+    "category": "backend",
+    "aliases": ["flask python"]
+  },
+  {
+    "name": "Django",
+    "category": "backend",
+    "aliases": ["django framework"]
   },
   {
     "name": "Node.js",
@@ -55,14 +105,39 @@
     "aliases": ["nodejs", "node"]
   },
   {
+    "name": "Express.js",
+    "category": "backend",
+    "aliases": ["express", "expressjs"]
+  },
+  {
     "name": "API REST",
     "category": "backend",
-    "aliases": ["rest api", "api rest", "apis", "endpoints", "diseño de apis", "diseno de apis"]
+    "aliases": ["rest api", "api rest", "apis", "endpoints", "diseno de apis", "diseño de apis"]
+  },
+  {
+    "name": "Microservicios",
+    "category": "architecture",
+    "aliases": ["microservicio", "microservices", "arquitectura de microservicios"]
+  },
+  {
+    "name": "Arquitectura Hexagonal",
+    "category": "architecture",
+    "aliases": ["hexagonal architecture", "ports and adapters"]
+  },
+  {
+    "name": "Clean Architecture",
+    "category": "architecture",
+    "aliases": ["arquitectura limpia", "clean code architecture"]
   },
   {
     "name": "JWT",
     "category": "security",
     "aliases": ["json web token", "autenticacion mediante jwt", "autorizacion mediante jwt"]
+  },
+  {
+    "name": "OAuth2",
+    "category": "security",
+    "aliases": ["oauth", "oauth 2", "oauth 2.0"]
   },
   {
     "name": "Swagger/OpenAPI",
@@ -73,6 +148,16 @@
     "name": "Angular",
     "category": "frontend",
     "aliases": ["angular framework"]
+  },
+  {
+    "name": "React",
+    "category": "frontend",
+    "aliases": ["react.js", "reactjs"]
+  },
+  {
+    "name": "Next.js",
+    "category": "frontend",
+    "aliases": ["nextjs", "next"]
   },
   {
     "name": "Vue",
@@ -90,9 +175,39 @@
     "aliases": ["css3", "scss", "sass"]
   },
   {
+    "name": "Bootstrap",
+    "category": "frontend",
+    "aliases": ["bootstrap css"]
+  },
+  {
+    "name": "Tailwind CSS",
+    "category": "frontend",
+    "aliases": ["tailwind", "tailwindcss"]
+  },
+  {
     "name": "Docker",
     "category": "devops",
     "aliases": ["docker compose", "contenedorizado", "contenedores"]
+  },
+  {
+    "name": "Kubernetes",
+    "category": "devops",
+    "aliases": ["k8s", "kubernetes cluster"]
+  },
+  {
+    "name": "Nginx",
+    "category": "devops",
+    "aliases": ["nginx"]
+  },
+  {
+    "name": "Terraform",
+    "category": "devops",
+    "aliases": ["infraestructura como codigo", "iac"]
+  },
+  {
+    "name": "Jenkins",
+    "category": "devops",
+    "aliases": ["jenkins pipeline"]
   },
   {
     "name": "GitHub Actions",
@@ -103,6 +218,126 @@
     "name": "CI/CD",
     "category": "devops",
     "aliases": ["ci/cd", "integracion continua", "despliegue continuo"]
+  },
+  {
+    "name": "Linux",
+    "category": "operating_system",
+    "aliases": ["gnu/linux", "ubuntu", "debian"]
+  },
+  {
+    "name": "Bash",
+    "category": "tools",
+    "aliases": ["shell script", "scripting bash"]
+  },
+  {
+    "name": "AWS",
+    "category": "cloud",
+    "aliases": ["amazon web services", "aws cloud", "ec2", "s3", "lambda"]
+  },
+  {
+    "name": "Azure",
+    "category": "cloud",
+    "aliases": ["microsoft azure", "azure cloud"]
+  },
+  {
+    "name": "Google Cloud",
+    "category": "cloud",
+    "aliases": ["gcp", "google cloud platform"]
+  },
+  {
+    "name": "Apache Kafka",
+    "category": "data_engineering",
+    "aliases": ["kafka", "event streaming"]
+  },
+  {
+    "name": "RabbitMQ",
+    "category": "data_engineering",
+    "aliases": ["rabbit mq", "message broker"]
+  },
+  {
+    "name": "Apache Spark",
+    "category": "data_engineering",
+    "aliases": ["spark", "pyspark"]
+  },
+  {
+    "name": "Hadoop",
+    "category": "data_engineering",
+    "aliases": ["apache hadoop"]
+  },
+  {
+    "name": "Airflow",
+    "category": "data_engineering",
+    "aliases": ["apache airflow"]
+  },
+  {
+    "name": "ETL",
+    "category": "data_engineering",
+    "aliases": ["elt", "procesos etl", "pipelines etl"]
+  },
+  {
+    "name": "Pandas",
+    "category": "ai",
+    "aliases": ["pandas"]
+  },
+  {
+    "name": "NumPy",
+    "category": "ai",
+    "aliases": ["numpy"]
+  },
+  {
+    "name": "scikit-learn",
+    "category": "ai",
+    "aliases": ["sklearn", "scikit learn"]
+  },
+  {
+    "name": "TensorFlow",
+    "category": "ai",
+    "aliases": ["tensorflow"]
+  },
+  {
+    "name": "PyTorch",
+    "category": "ai",
+    "aliases": ["pytorch", "torch"]
+  },
+  {
+    "name": "Machine Learning",
+    "category": "ai",
+    "aliases": ["aprendizaje automatico", "aprendizaje automático", "ml"]
+  },
+  {
+    "name": "NLP",
+    "category": "ai",
+    "aliases": ["procesamiento de lenguaje natural", "natural language processing"]
+  },
+  {
+    "name": "LLM",
+    "category": "ai",
+    "aliases": ["large language model", "modelos de lenguaje", "modelos generativos"]
+  },
+  {
+    "name": "Embeddings",
+    "category": "ai",
+    "aliases": ["embedding", "sentence embeddings", "vectores semanticos", "vectores semánticos"]
+  },
+  {
+    "name": "sentence-transformers",
+    "category": "ai",
+    "aliases": ["sentence transformers", "sentence-transformer"]
+  },
+  {
+    "name": "LangChain",
+    "category": "ai",
+    "aliases": ["langchain"]
+  },
+  {
+    "name": "Power BI",
+    "category": "data_visualization",
+    "aliases": ["powerbi", "power bi desktop"]
+  },
+  {
+    "name": "Tableau",
+    "category": "data_visualization",
+    "aliases": ["tableau"]
   },
   {
     "name": "Git",
@@ -120,9 +355,19 @@
     "aliases": ["maven"]
   },
   {
+    "name": "Gradle",
+    "category": "tools",
+    "aliases": ["gradle"]
+  },
+  {
     "name": "npm",
     "category": "tools",
     "aliases": ["npm"]
+  },
+  {
+    "name": "Postman",
+    "category": "tools",
+    "aliases": ["postman"]
   },
   {
     "name": "Allure Report",
@@ -135,6 +380,16 @@
     "aliases": ["schemathesis"]
   },
   {
+    "name": "JUnit",
+    "category": "testing",
+    "aliases": ["junit", "junit 5"]
+  },
+  {
+    "name": "pytest",
+    "category": "testing",
+    "aliases": ["py test", "pytest"]
+  },
+  {
     "name": "API Testing",
     "category": "testing",
     "aliases": ["pruebas de api", "testeo de endpoints", "testing de api"]
@@ -142,12 +397,22 @@
   {
     "name": "CRUD",
     "category": "backend",
-    "aliases": ["crear, editar y eliminar", "alta/edición/borrado", "alta/edicion/borrado"]
+    "aliases": ["crear editar eliminar", "alta edicion borrado", "alta/edicion/borrado"]
   },
   {
     "name": "JSON",
     "category": "data_format",
     "aliases": ["json"]
+  },
+  {
+    "name": "CSV",
+    "category": "data_format",
+    "aliases": ["csv"]
+  },
+  {
+    "name": "XML",
+    "category": "data_format",
+    "aliases": ["xml"]
   },
   {
     "name": "CLI",
@@ -165,14 +430,14 @@
     "aliases": ["netlify"]
   },
   {
+    "name": "Vercel",
+    "category": "deployment",
+    "aliases": ["vercel"]
+  },
+  {
     "name": "Slack",
     "category": "tools",
     "aliases": ["slack"]
-  },
-  {
-    "name": "Machine Learning",
-    "category": "ai",
-    "aliases": ["aprendizaje automatico", "aprendizaje automático", "ml"]
   },
   {
     "name": "Estructuras de Datos",
@@ -180,7 +445,7 @@
     "aliases": ["estructuras de datos"]
   },
   {
-    "name": "Análisis de Algoritmos",
+    "name": "Analisis de Algoritmos",
     "category": "computer_science",
     "aliases": ["analisis de algoritmos", "análisis de algoritmos", "big-o", "big o"]
   }

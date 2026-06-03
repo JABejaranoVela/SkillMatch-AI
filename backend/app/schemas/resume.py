@@ -23,5 +23,6 @@ class ProfileRead(BaseModel):
     education: dict | None = None
     languages: list | None = None
     technologies: list | None = None
+    analysis: dict | None = None
 
     model_config = {"from_attributes": True}

@@ -19,10 +19,13 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://skillmatch:skillmatch@db:5432/skillmatch
       BACKEND_CORS_ORIGINS: '["http://localhost:4200"]'
+      SKILL_NER_ENABLED: "true"
     ports:
       - "8000:8000"
     volumes:
       - ./backend/app:/app/app
+      - ./backend/alembic:/app/alembic
+      - ./tests:/app/tests
       - ./data:/app/data
       - ./storage:/app/storage
     depends_on:
