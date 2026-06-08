@@ -3,8 +3,18 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { ApiService } from '../../core/api.service';
+import { Job } from '../jobs/job.service';
 
 export type InteractionType = 'viewed' | 'saved' | 'discarded' | 'applied';
+
+export interface FeedbackJob {
+  id: number;
+  job_id: number;
+  match_result_id: number | null;
+  interaction_type: InteractionType;
+  created_at: string;
+  job: Job;
+}
 
 @Injectable({ providedIn: 'root' })
 export class FeedbackService {
@@ -20,5 +30,9 @@ export class FeedbackService {
       interaction_type: interactionType
     });
   }
-}
 
+  listJobs(interactionType?: InteractionType): Observable<FeedbackJob[]> {
+    const query = interactionType ? `?interaction_type=${interactionType}` : '';
+    return this.http.get<FeedbackJob[]>(`${this.api.baseUrl}/feedback/me/jobs${query}`);
+  }
+}

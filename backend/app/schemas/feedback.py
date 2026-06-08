@@ -1,4 +1,8 @@
+from datetime import datetime
+
 from pydantic import BaseModel
+
+from app.schemas.job import JobRead
 
 
 class FeedbackCreate(BaseModel):
@@ -12,3 +16,7 @@ class FeedbackRead(FeedbackCreate):
 
     model_config = {"from_attributes": True}
 
+
+class FeedbackJobRead(FeedbackRead):
+    created_at: datetime
+    job: JobRead

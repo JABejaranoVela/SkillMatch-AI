@@ -100,7 +100,6 @@ def detect_skills_with_ner(text: str, detected: dict[str, dict]) -> list[dict]:
 
         for entity in entities:
             raw_text = str(entity.get("text", "")).strip()
-            normalized = normalize_token(raw_text)
             if not _should_keep_ner_candidate(text, raw_text, existing_terms):
                 continue
             label = str(entity.get("label", "software tool"))

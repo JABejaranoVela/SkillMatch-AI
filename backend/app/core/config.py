@@ -25,12 +25,12 @@ class Settings(BaseSettings):
     EMBEDDINGS_ENABLED: bool = True
     SKILL_NER_ENABLED: bool = False
     SKILL_NER_MODEL_NAME: str = "urchade/gliner_medium-v2.1"
-    REMOTIVE_API_URL: str = "https://remotive.com/api/remote-jobs"
-    REMOTIVE_DEFAULT_SEARCH: str = "python"
-    REMOTIVE_IMPORT_LIMIT: int = 25
-    ARBEITNOW_API_URL: str = "https://www.arbeitnow.com/api/job-board-api"
     TECNOEMPLEO_BASE_URL: str = "https://www.tecnoempleo.com"
+    INFOJOBS_API_URL: str = "https://api.infojobs.net/api/1/offer"
+    INFOJOBS_CLIENT_ID: str | None = None
+    INFOJOBS_CLIENT_SECRET: str | None = None
     PROFILE_JOB_IMPORT_LIMIT: int = 12
+    RECOMMENDATIONS_LIMIT: int = 50
 
 
 settings = Settings()

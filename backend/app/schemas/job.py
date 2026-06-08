@@ -32,3 +32,16 @@ class JobRecommendationRead(BaseModel):
     matching_skills: list[str]
     missing_skills: list[str]
     score_breakdown: dict | None = None
+
+
+class JobSearchTaskRead(BaseModel):
+    task_id: str
+    status: str
+    message: str
+    sources: dict | None = None
+    imported: int = 0
+    updated: int = 0
+    skipped: int = 0
+    error: str | None = None
+
+    model_config = {"from_attributes": True}

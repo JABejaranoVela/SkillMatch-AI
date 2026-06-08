@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
+import { JobService } from '../jobs/job.service';
 import { ProfessionalProfile, ProfileScore, Resume, ResumeService } from './resume.service';
 
 interface SkillCategoryGroup {
@@ -28,8 +29,12 @@ export class ResumesComponent implements OnInit {
   isUploading = false;
   isProcessing = false;
   showAllSkills = false;
+  readonly skeletonRows = Array.from({ length: 3 });
 
-  constructor(private readonly resumeService: ResumeService) {}
+  constructor(
+    private readonly jobService: JobService,
+    private readonly resumeService: ResumeService
+  ) {}
 
   get activeResume(): Resume | null {
     return this.resumes[0] ?? null;
@@ -46,6 +51,16 @@ export class ResumesComponent implements OnInit {
 
   get isBusy(): boolean {
     return this.isUploading || this.isProcessing;
+  }
+
+  get loadingMessage(): string {
+    if (this.isUploading) {
+      return 'Subiendo CV...';
+    }
+    if (this.isProcessing) {
+      return 'Analizando CV y detectando aptitudes...';
+    }
+    return '';
   }
 
   ngOnInit(): void {
@@ -80,6 +95,7 @@ export class ResumesComponent implements OnInit {
   }
 
   process(resumeId: number): void {
+    this.jobService.clearRecommendedCache();
     this.isProcessing = true;
     this.statusMessage = 'Analizando tu CV...';
     this.errorMessage = '';
@@ -250,6 +266,7 @@ export class ResumesComponent implements OnInit {
     this.selectedFile = file;
     this.uploadedFileSize = file.size;
     this.isUploading = true;
+    this.jobService.clearRecommendedCache();
     this.statusMessage = 'Subiendo CV...';
     this.errorMessage = '';
 

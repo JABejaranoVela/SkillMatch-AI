@@ -1,0 +1,74 @@
+<section class="tool-page">
+  @if (isLoading) {
+    <div class="loading-banner" role="status" aria-live="polite">
+      <span class="loading-spinner small" aria-hidden="true"></span>
+      <div>
+        <strong>{{ loadingMessage }}</strong>
+        <p>La página sigue disponible mientras se actualiza el listado.</p>
+      </div>
+    </div>
+  }
+
+  <div class="page-heading">
+    <h1>Mis ofertas</h1>
+    <p>Consulta las ofertas que has guardado o marcado como postuladas para hacer seguimiento.</p>
+  </div>
+
+  <section class="upload-panel">
+    <div>
+      <h2>Seguimiento personal</h2>
+      <p>Esta pantalla muestra el último estado registrado para cada oferta.</p>
+    </div>
+    <div class="actions">
+      <button type="button" [class.ghost-button]="activeFilter !== 'all'" (click)="setFilter('all')">Todas</button>
+      <button type="button" [class.ghost-button]="activeFilter !== 'saved'" (click)="setFilter('saved')">Guardadas</button>
+      <button type="button" [class.ghost-button]="activeFilter !== 'applied'" (click)="setFilter('applied')">Postuladas</button>
+    </div>
+  </section>
+
+  @if (statusMessage) {
+    <p class="status">{{ statusMessage }}</p>
+  }
+
+  @if (errorMessage) {
+    <p class="error">{{ errorMessage }}</p>
+  }
+
+  <section class="list">
+    <h2>Ofertas seleccionadas</h2>
+
+    @for (offer of offers; track offer.id) {
+      <article>
+        <div>
+          <div class="profile-header">
+            <div>
+              <p class="eyebrow">
+                {{ sourceLabel(offer.job.source) }} &middot; {{ offer.job.modality || 'modalidad no indicada' }}
+              </p>
+              <h3>{{ offer.job.title }}</h3>
+              <p>{{ offer.job.company || 'Empresa no indicada' }} &middot; {{ offer.job.location || 'ubicación no indicada' }}</p>
+            </div>
+            <span class="profile-status">{{ interactionLabel(offer.interaction_type) }}</span>
+          </div>
+
+          <p class="summary">Registrada el {{ offer.created_at | date:'d MMM y, HH:mm' }}</p>
+          <p class="summary">{{ summary(offer.job.description) }}</p>
+
+          @if (offer.job.url) {
+            <a class="job-link" [href]="offer.job.url" target="_blank" rel="noreferrer">
+              Ver oferta original en {{ sourceLabel(offer.job.source) }}
+            </a>
+          }
+        </div>
+
+        <div class="actions">
+          <button type="button" (click)="changeStatus(offer, 'saved')">Guardar</button>
+          <button type="button" (click)="changeStatus(offer, 'applied')">Postulado</button>
+          <button type="button" class="ghost-button" (click)="changeStatus(offer, 'discarded')">Descartar</button>
+        </div>
+      </article>
+    } @empty {
+      <p class="empty">Todavía no has guardado ni marcado ofertas como postuladas.</p>
+    }
+  </section>
+</section>

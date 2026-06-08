@@ -1,8 +1,8 @@
 import re
 from collections import defaultdict
 
-from app.services.nlp.skills import detect_skills
 from app.services.nlp.normalization import normalize_token
+from app.services.nlp.skills import detect_skills
 
 SECONDARY_PROFILE_MIN_SCORE = 30
 
@@ -174,7 +174,7 @@ def build_profile_from_text(clean_text: str) -> dict:
     experience_years = detect_experience_years(clean_text)
     technologies = [skill["name"] for skill in skills]
     profile_scores = infer_profile_scores(clean_text, skills)
-    primary_profile = profile_scores[0]["name"] if profile_scores else "Perfil Tecnico General"
+    primary_profile = profile_scores[0]["name"] if profile_scores else "Perfil Técnico General"
     secondary_profile = infer_secondary_profile(profile_scores)
     skill_categories = group_skills_by_category(skills)
 
@@ -265,7 +265,7 @@ def build_summary(
     technologies: list[str],
     experience_years: float | None,
 ) -> str:
-    skills_text = ", ".join(technologies[:12]) if technologies else "sin skills tecnicas detectadas"
+    skills_text = ", ".join(technologies[:12]) if technologies else "sin skills técnicas detectadas"
     experience_text = (
         f"{experience_years:g} años de experiencia detectados"
         if experience_years is not None
@@ -324,7 +324,7 @@ def detect_education_snippets(text: str) -> list[str]:
         normalized = normalize_token(line)
         if any(keyword in normalized for keyword in keywords):
             year = find_nearby_year(lines, index)
-            value = f"{line} · {year}" if year else line
+            value = f"{line} - {year}" if year else line
             normalized_value = normalize_token(value)
             if normalized_value not in seen:
                 seen.add(normalized_value)
@@ -334,7 +334,7 @@ def detect_education_snippets(text: str) -> list[str]:
 
 def find_nearby_year(lines: list[str], index: int) -> str | None:
     for line in lines[index : index + 4]:
-        match = re.search(r"(20\d{2}\s*[–-]\s*20\d{2}|20\d{2})", line)
+        match = re.search(r"(20\d{2}\s*[-\u2013]\s*20\d{2}|20\d{2})", line)
         if match:
             return match.group(1)
     return None

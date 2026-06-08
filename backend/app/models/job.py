@@ -56,3 +56,20 @@ class JobImport(Base):
     records_ok: Mapped[int] = mapped_column(default=0)
     records_error: Mapped[int] = mapped_column(default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class JobSearchTask(Base):
+    __tablename__ = "job_search_tasks"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    task_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    status: Mapped[str] = mapped_column(String(50), default="pending")
+    message: Mapped[str] = mapped_column(String(255), default="Búsqueda pendiente")
+    sources: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    imported: Mapped[int] = mapped_column(default=0)
+    updated: Mapped[int] = mapped_column(default=0)
+    skipped: Mapped[int] = mapped_column(default=0)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

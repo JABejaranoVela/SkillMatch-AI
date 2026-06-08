@@ -32,6 +32,10 @@ def encode_text(text: str | None) -> list[float] | None:
     return [float(value) for value in vector.tolist()]
 
 
+def warm_up_embeddings_model() -> None:
+    _load_model()
+
+
 def cosine_similarity(left: Iterable[float] | None, right: Iterable[float] | None) -> float:
     left_values = list(left) if left is not None else []
     right_values = list(right) if right is not None else []

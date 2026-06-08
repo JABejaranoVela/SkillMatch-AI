@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.job import Job
+from app.services.jobs_import.upsert import load_existing_jobs, upsert_job
 from app.services.nlp.skills import detect_skills
 
 SOURCE = "tecnoempleo"
@@ -25,11 +26,13 @@ def sync_tecnoempleo_jobs(db: Session, search_terms: list[str], limit: int | Non
     imported = 0
     updated = 0
     skipped = 0
+    processed = 0
     seen_urls: set[str] = set()
+    existing_jobs = load_existing_jobs(db, SOURCE)
 
     with httpx.Client(headers=HEADERS, timeout=25.0, follow_redirects=True) as client:
         for term in _search_terms_for_spain(search_terms):
-            if imported >= max_records:
+            if processed >= max_records:
                 break
 
             listing_url = f"{settings.TECNOEMPLEO_BASE_URL}/ofertas-trabajo/{_slug(term)}"
@@ -39,7 +42,7 @@ def sync_tecnoempleo_jobs(db: Session, search_terms: list[str], limit: int | Non
                 continue
 
             for offer_url in _extract_offer_urls(_response_text(response)):
-                if imported >= max_records:
+                if processed >= max_records:
                     break
                 if offer_url in seen_urls:
                     continue
@@ -50,23 +53,12 @@ def sync_tecnoempleo_jobs(db: Session, search_terms: list[str], limit: int | Non
                     skipped += 1
                     continue
 
-                existing_job = db.scalar(
-                    select(Job).where(Job.source == SOURCE, Job.external_id == detail["external_id"])
-                )
-                if existing_job:
-                    existing_job.title = detail["title"]
-                    existing_job.company = detail["company"]
-                    existing_job.description = detail["description"]
-                    existing_job.requirements = detail["requirements"]
-                    existing_job.location = detail["location"]
-                    existing_job.modality = detail["modality"]
-                    existing_job.url = detail["url"]
-                    existing_job.embedding = None
+                result = upsert_job(db, SOURCE, detail, existing_jobs)
+                processed += 1
+                if result == "imported":
+                    imported += 1
+                elif result == "updated":
                     updated += 1
-                    continue
-
-                db.add(Job(source=SOURCE, **detail))
-                imported += 1
 
     _normalize_existing_tecnoempleo_jobs(db)
     db.commit()
@@ -76,7 +68,7 @@ def sync_tecnoempleo_jobs(db: Session, search_terms: list[str], limit: int | Non
         "imported": imported,
         "updated": updated,
         "skipped": skipped,
-        "attribution": "Ofertas obtenidas desde Tecnoempleo, portal IT de empleo en Espana.",
+        "attribution": "Ofertas obtenidas desde Tecnoempleo, portal IT de empleo en España.",
     }
 
 
@@ -193,7 +185,7 @@ def _extract_location(text: str) -> str | None:
         match = re.search(pattern, text, flags=re.I)
         if match:
             return match.group(1)
-    return "Espana"
+    return "España"
 
 
 def _infer_modality(text: str) -> str:
@@ -209,7 +201,7 @@ def _build_requirements(description: str) -> str:
     detected = [skill["name"] for skill in detect_skills(description)]
     if detected:
         return ", ".join(detected)
-    return "Requisitos no estructurados; revisar descripcion de la oferta."
+    return "Requisitos no estructurados; revisar descripción de la oferta."
 
 
 def _external_id(url: str) -> str:
@@ -231,12 +223,26 @@ def _response_text(response: httpx.Response) -> str:
 
 
 def _fix_mojibake(value: str) -> str:
-    if "Ã" not in value and "Â" not in value:
-        return value
-    try:
-        return value.encode("latin1").decode("utf-8")
-    except UnicodeError:
-        return value
+    replacements = {
+        "Espa\uff83\uff71a": "España",
+        "Descripci\uff83\uff73n": "Descripción",
+        "descripci\uff83\uff73n": "descripción",
+        "H\uff83\uff6dbrido": "Híbrido",
+        "h\uff83\uff6dbrido": "híbrido",
+        "M\uff83\uff61laga": "Málaga",
+    }
+    fixed = value
+    for source, target in replacements.items():
+        fixed = fixed.replace(source, target)
+    if fixed != value:
+        return fixed
+
+    for encoding in ("cp932", "latin1"):
+        try:
+            return value.encode(encoding).decode("utf-8")
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            continue
+    return value
 
 
 def _normalize_existing_tecnoempleo_jobs(db: Session) -> None:

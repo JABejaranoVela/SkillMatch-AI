@@ -1,4 +1,13 @@
 <section class="cv-page">
+  @if (isBusy) {
+    <div class="loading-banner" role="status" aria-live="polite">
+      <span class="loading-spinner small" aria-hidden="true"></span>
+      <div>
+        <strong>{{ loadingMessage }}</strong>
+      </div>
+    </div>
+  }
+
   <div class="page-heading">
     <h1>Sube tu CV</h1>
     <p>Sube tu currículum en formato PDF para analizar tu perfil profesional y detectar tus principales aptitudes.</p>
@@ -229,12 +238,30 @@
           </svg>
         </a>
       </section>
+    } @else if (isBusy) {
+      <div class="analysis-skeleton">
+        <article class="profile-card skeleton-card" aria-hidden="true">
+          <span class="skeleton-avatar"></span>
+          <div class="profile-copy">
+            <span class="skeleton-line eyebrow-line"></span>
+            <span class="skeleton-line title-line"></span>
+            <span class="skeleton-line meta-line"></span>
+          </div>
+        </article>
+
+        <div class="insight-grid">
+          @for (_row of skeletonRows; track $index) {
+            <article class="insight-card skeleton-card" aria-hidden="true">
+              <span class="skeleton-line title-line"></span>
+              <span class="skeleton-block"></span>
+            </article>
+          }
+        </div>
+      </div>
     } @else {
       <div class="empty-analysis">
-        <h3>{{ isBusy ? 'Analizando tu perfil profesional' : 'Análisis pendiente' }}</h3>
-        <p>
-          {{ isBusy ? 'Estamos extrayendo aptitudes, formacion, idiomas y experiencia del CV.' : 'Sube un PDF para detectar tu perfil profesional y tus aptitudes principales.' }}
-        </p>
+        <h3>Análisis pendiente</h3>
+        <p>Sube un PDF para detectar tu perfil profesional y tus aptitudes principales.</p>
       </div>
     }
   </section>

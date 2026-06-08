@@ -89,6 +89,10 @@
   clip-path: polygon(33% 20%, 33% 10%, 67% 10%, 67% 20%, 90% 20%, 90% 88%, 10% 88%, 10% 20%);
 }
 
+.saved-icon {
+  clip-path: polygon(20% 8%, 80% 8%, 80% 92%, 50% 72%, 20% 92%);
+}
+
 .match-icon {
   border: 3px solid currentColor;
   border-radius: var(--radius-pill);

@@ -52,10 +52,10 @@ def calculate_hybrid_match(profile: ProfessionalProfile, job: Job) -> dict:
         "semantic_score": semantic_score,
     }
     explanation["positive_signals"].append(
-        f"Similitud semantica CV-oferta: {semantic_score}%"
+        f"Similitud semántica CV-oferta: {semantic_score}%"
     )
     explanation["positive_signals"].append(
-        "Score final = 65% skills detectadas + 35% similitud semantica"
+        "Score final = 65% skills detectadas + 35% similitud semántica"
     )
 
     return {
