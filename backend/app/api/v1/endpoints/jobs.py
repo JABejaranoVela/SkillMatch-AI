@@ -1,18 +1,20 @@
+from collections.abc import Sequence
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, TypeVar
 from uuid import uuid4
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, UploadFile, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import get_current_user
 from app.core.config import settings
 from app.db.session import SessionLocal, get_db
 from app.models.job import Job, JobSearchTask, JobStatus
+from app.models.matching import MatchResult
 from app.models.resume import Resume
 from app.models.user import User
-from app.schemas.job import JobCreate, JobRead, JobRecommendationRead, JobSearchTaskRead
+from app.schemas.job import JobCreate, JobRead, JobRecommendationPage, JobSearchTaskRead
 from app.services.embeddings.semantic import ensure_job_embedding, ensure_profile_embedding
 from app.services.jobs_import.importer import import_jobs_from_text
 from app.services.jobs_import.infojobs import sync_infojobs_jobs
@@ -23,6 +25,7 @@ from app.services.matching.rules import calculate_hybrid_match
 router = APIRouter()
 
 RECOMMENDED_SOURCES = ("tecnoempleo", "infojobs")
+T = TypeVar("T")
 
 
 @router.get("", response_model=list[JobRead])
@@ -107,33 +110,82 @@ def get_job_search_status(
     return task
 
 
-@router.get("/recommended", response_model=list[JobRecommendationRead])
+@router.get("/recommended", response_model=JobRecommendationPage)
 def recommended_jobs(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
-) -> list[dict]:
+    limit: Annotated[int, Query(ge=1, le=50)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> dict:
     resume = _get_active_resume(db, current_user.id)
-    profile = resume.profile
-    ensure_profile_embedding(profile, resume.clean_text)
     jobs = _latest_recommendable_jobs(db)
+    job_ids = [job.id for job in jobs]
+    if not job_ids:
+        return {"items": [], "total": 0, "limit": limit, "offset": offset, "has_more": False}
 
-    recommendations: list[dict] = []
-    for job in jobs:
-        ensure_job_embedding(job)
-        score = calculate_hybrid_match(profile, job)
-        recommendations.append(
+    results = list(
+        db.scalars(
+            select(MatchResult)
+            .options(joinedload(MatchResult.job))
+            .where(
+                MatchResult.user_id == current_user.id,
+                MatchResult.resume_id == resume.id,
+                MatchResult.job_id.in_(job_ids),
+                MatchResult.algorithm_version == settings.MATCHING_ALGORITHM_VERSION,
+            )
+            .order_by(MatchResult.final_score.desc(), MatchResult.id.desc())
+        ).unique()
+    )
+    latest_by_job: dict[int, MatchResult] = {}
+    for result in results:
+        latest_by_job.setdefault(result.job_id, result)
+
+    if len(latest_by_job) < len(job_ids):
+        _refresh_recommendation_results(db, current_user.id, resume, jobs)
+        results = list(
+            db.scalars(
+                select(MatchResult)
+                .options(joinedload(MatchResult.job))
+                .where(
+                    MatchResult.user_id == current_user.id,
+                    MatchResult.resume_id == resume.id,
+                    MatchResult.job_id.in_(job_ids),
+                    MatchResult.algorithm_version == settings.MATCHING_ALGORITHM_VERSION,
+                )
+                .order_by(MatchResult.final_score.desc(), MatchResult.id.desc())
+            ).unique()
+        )
+        latest_by_job = {}
+        for result in results:
+            latest_by_job.setdefault(result.job_id, result)
+
+    ranked_results = sorted(
+        latest_by_job.values(),
+        key=lambda result: (result.final_score, result.id),
+        reverse=True,
+    )
+    page_results, total, has_more = _paginate_items(ranked_results, limit, offset)
+    items: list[dict] = []
+    for result in page_results:
+        explanation = result.explanation or {}
+        items.append(
             {
-                "job": job,
-                "final_score": score["final_score"],
-                "rules_score": score["rules_score"],
-                "semantic_score": score["semantic_score"],
-                "matching_skills": score["explanation"]["matching_skills"],
-                "missing_skills": score["explanation"]["missing_skills"],
-                "score_breakdown": score["explanation"]["score_breakdown"],
+                "job": result.job,
+                "final_score": result.final_score,
+                "rules_score": result.rules_score,
+                "semantic_score": result.semantic_score,
+                "matching_skills": explanation.get("matching_skills", []),
+                "missing_skills": explanation.get("missing_skills", []),
+                "score_breakdown": explanation.get("score_breakdown"),
             }
         )
-    db.commit()
-    return sorted(recommendations, key=lambda item: item["final_score"], reverse=True)
+    return {
+        "items": items,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "has_more": has_more,
+    }
 
 
 @router.get("/{job_id}", response_model=JobRead)
@@ -173,6 +225,57 @@ def _latest_recommendable_jobs(db: Session) -> list[Job]:
     )
 
 
+def _paginate_items(items: Sequence[T], limit: int, offset: int) -> tuple[list[T], int, bool]:
+    total = len(items)
+    page = list(items[offset : offset + limit])
+    return page, total, offset + len(page) < total
+
+
+def _refresh_recommendation_results(
+    db: Session,
+    user_id: int,
+    resume: Resume,
+    jobs: list[Job] | None = None,
+) -> None:
+    profile = resume.profile
+    ensure_profile_embedding(profile, resume.clean_text)
+    candidates = jobs if jobs is not None else _latest_recommendable_jobs(db)
+    candidate_ids = [job.id for job in candidates]
+    existing_results: dict[int, MatchResult] = {}
+    if candidate_ids:
+        stored_results = db.scalars(
+            select(MatchResult)
+            .where(
+                MatchResult.user_id == user_id,
+                MatchResult.resume_id == resume.id,
+                MatchResult.job_id.in_(candidate_ids),
+                MatchResult.algorithm_version == settings.MATCHING_ALGORITHM_VERSION,
+            )
+            .order_by(MatchResult.id.desc())
+        ).all()
+        for result in stored_results:
+            existing_results.setdefault(result.job_id, result)
+
+    for job in candidates:
+        ensure_job_embedding(job)
+        score = calculate_hybrid_match(profile, job)
+        result = existing_results.get(job.id)
+        if result is None:
+            result = MatchResult(
+                user_id=user_id,
+                resume_id=resume.id,
+                job_id=job.id,
+                algorithm_version=settings.MATCHING_ALGORITHM_VERSION,
+            )
+            db.add(result)
+        result.rules_score = score["rules_score"]
+        result.semantic_score = score["semantic_score"]
+        result.final_score = score["final_score"]
+        result.explanation = score["explanation"]
+        result.created_at = datetime.utcnow()
+    db.commit()
+
+
 def _run_profile_job_search(task_id: str, user_id: int, limit: int | None = None) -> None:
     db = SessionLocal()
     try:
@@ -203,10 +306,7 @@ def _run_profile_job_search(task_id: str, user_id: int, limit: int | None = None
             status="ranking",
             message="Calculando compatibilidad con tu CV...",
         )
-        ensure_profile_embedding(profile, resume.clean_text)
-        for job in _latest_recommendable_jobs(db):
-            ensure_job_embedding(job)
-        db.commit()
+        _refresh_recommendation_results(db, user_id, resume)
 
         imported = sum(int(result.get("imported", 0)) for result in source_results)
         updated = sum(int(result.get("updated", 0)) for result in source_results)

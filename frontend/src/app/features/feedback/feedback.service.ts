@@ -14,6 +14,9 @@ export interface FeedbackJob {
   interaction_type: InteractionType;
   created_at: string;
   job: Job;
+  final_score: number;
+  matching_skills: string[];
+  missing_skills: string[];
 }
 
 @Injectable({ providedIn: 'root' })

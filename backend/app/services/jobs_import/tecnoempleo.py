@@ -1,6 +1,7 @@
 import html
 import re
 import unicodedata
+from datetime import datetime, timedelta
 from urllib.parse import urljoin
 
 import httpx
@@ -119,6 +120,7 @@ def _fetch_offer_detail(client: httpx.Client, url: str) -> dict | None:
         return None
 
     description = _extract_description(text)
+    salary_min, salary_max = _extract_salary(text)
     return {
         "external_id": _external_id(url),
         "title": title,
@@ -127,6 +129,11 @@ def _fetch_offer_detail(client: httpx.Client, url: str) -> dict | None:
         "requirements": _build_requirements(description),
         "location": _extract_location(text),
         "modality": _infer_modality(text),
+        "salary_min": salary_min,
+        "salary_max": salary_max,
+        "salary_currency": "EUR" if salary_min or salary_max else None,
+        "contract_type": _extract_contract_type(text),
+        "published_at": _extract_published_at(text),
         "url": url,
     }
 
@@ -195,6 +202,70 @@ def _infer_modality(text: str) -> str:
     if "hibrido" in normalized or "híbrido" in normalized:
         return "hibrido"
     return "presencial/no indicada"
+
+
+def _extract_salary(text: str) -> tuple[float | None, float | None]:
+    range_match = re.search(
+        r"(\d{2,3}(?:[.\s]\d{3})+)\s*(?:€|euros?)?\s*[-–a]\s*"
+        r"(\d{2,3}(?:[.\s]\d{3})+)\s*(?:€|euros?)",
+        text,
+        flags=re.I,
+    )
+    if range_match:
+        return _salary_number(range_match.group(1)), _salary_number(range_match.group(2))
+
+    single_match = re.search(
+        r"(?:salario|remuneraci[oó]n)[^\d]{0,20}(\d{2,3}(?:[.\s]\d{3})+)\s*(?:€|euros?)",
+        text,
+        flags=re.I,
+    )
+    if single_match:
+        value = _salary_number(single_match.group(1))
+        return value, value
+    return None, None
+
+
+def _salary_number(value: str) -> float:
+    return float(re.sub(r"[.\s]", "", value))
+
+
+def _extract_contract_type(text: str) -> str | None:
+    normalized = text.lower()
+    contract_types = (
+        ("contrato indefinido", "Contrato indefinido"),
+        ("indefinido", "Contrato indefinido"),
+        ("contrato temporal", "Contrato temporal"),
+        ("temporal", "Contrato temporal"),
+        ("autónomo", "Autónomo"),
+        ("autonomo", "Autónomo"),
+        ("freelance", "Freelance"),
+        ("prácticas", "Prácticas"),
+        ("practicas", "Prácticas"),
+    )
+    for signal, label in contract_types:
+        if signal in normalized:
+            return label
+    return None
+
+
+def _extract_published_at(text: str) -> datetime | None:
+    relative = re.search(r"publicad[ao]\s+hace\s+(\d+)\s+(hora|d[ií]a|semana)s?", text, flags=re.I)
+    if relative:
+        amount = int(relative.group(1))
+        unit = relative.group(2).lower()
+        if unit.startswith("hora"):
+            return datetime.now() - timedelta(hours=amount)
+        if unit.startswith(("día", "dia")):
+            return datetime.now() - timedelta(days=amount)
+        return datetime.now() - timedelta(weeks=amount)
+
+    date_match = re.search(r"(?:publicad[ao]\s*(?:el)?\s*)(\d{1,2}/\d{1,2}/\d{4})", text, flags=re.I)
+    if date_match:
+        try:
+            return datetime.strptime(date_match.group(1), "%d/%m/%Y")
+        except ValueError:
+            return None
+    return None
 
 
 def _build_requirements(description: str) -> str:

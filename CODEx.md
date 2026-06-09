@@ -70,6 +70,7 @@ El MVP debe permitir:
 - Guardar en `professional_profiles.analysis` las puntuaciones por perfil, evidencias usadas, skills agrupadas por categoria y origen de deteccion (`dictionary` o `pattern`).
 - El matching actual usa ML preentrenado mediante embeddings `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` y pgvector.
 - Score actual: 65% reglas de skills + 35% similitud semantica CV-oferta.
+- Las recomendaciones se persisten en `match_results` por usuario, CV y version del algoritmo. La API entrega 20 ofertas por pagina, calcula el ranking sobre un maximo de 50 candidatas activas y el frontend anade paginas con el boton `Cargar mas`.
 - No mostrar ofertas de Arbeitnow en el flujo principal porque trae demasiadas ofertas de Alemania. Para el MVP, `/jobs/recommended` y `/matching/active` filtran por `source = tecnoempleo`.
 - Documentar endpoints relevantes mediante OpenAPI/FastAPI.
 - Anadir tests al cerrar cada comportamiento critico.
@@ -77,6 +78,17 @@ El MVP debe permitir:
 ## Sistema Visual
 
 Toda modificacion visual del frontend debe partir de los tokens definidos en `frontend/src/styles.scss`. No usar colores hexadecimales, sombras, radios ni fuentes nuevas directamente en componentes salvo que antes se registren como token global y se documenten aqui.
+
+### Navegacion
+
+- `/` es la landing publica y permanece accesible aunque exista una sesion.
+- `/dashboard` es el inicio privado protegido.
+- Escritorio: barra lateral fija con Inicio, Mi CV, Explorar ofertas, Mis ofertas, Perfil y Ajustes.
+- Movil y tablet: la barra lateral se abre como panel superpuesto mediante un boton de menu.
+- La landing, el login y el registro usan layout publico sin barra lateral.
+- Tras registrarse se inicia sesion automaticamente y se abre `/resumes`.
+- El menu superior de cuenta usa avatar de iniciales y permite abrir Perfil, Ajustes y Cerrar sesion.
+- Mantener las rutas `/jobs` y `/my-jobs`; sus nombres visibles son `Explorar ofertas` y `Mis ofertas`.
 
 ### Fuente
 

@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 
 import { AuthService } from './auth.service';
 
@@ -22,7 +23,8 @@ export class LoginComponent {
   constructor(
     private readonly formBuilder: FormBuilder,
     private readonly authService: AuthService,
-    private readonly router: Router
+    private readonly router: Router,
+    private readonly route: ActivatedRoute
   ) {}
 
   submit(): void {
@@ -33,11 +35,13 @@ export class LoginComponent {
 
     const { email, password } = this.form.getRawValue();
     this.authService.login(email, password).subscribe({
-      next: () => this.router.navigateByUrl('/resumes'),
+      next: () => {
+        const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') || '/resumes';
+        void this.router.navigateByUrl(returnUrl);
+      },
       error: () => {
-        this.errorMessage = 'No se pudo iniciar sesion con esos datos.';
+        this.errorMessage = 'No se pudo iniciar sesión con esos datos.';
       }
     });
   }
 }
-

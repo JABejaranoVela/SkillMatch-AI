@@ -3,8 +3,23 @@ from sqlalchemy.orm import Session
 
 from app.models.job import Job
 
-EMBEDDING_FIELDS = ("title", "company", "description", "requirements", "location", "modality")
-UPSERT_FIELDS = (*EMBEDDING_FIELDS, "url")
+EMBEDDING_FIELDS = (
+    "title",
+    "company",
+    "description",
+    "requirements",
+    "location",
+    "modality",
+    "contract_type",
+)
+UPSERT_FIELDS = (
+    *EMBEDDING_FIELDS,
+    "salary_min",
+    "salary_max",
+    "salary_currency",
+    "published_at",
+    "url",
+)
 
 
 def load_existing_jobs(db: Session, source: str) -> dict[str, Job]:

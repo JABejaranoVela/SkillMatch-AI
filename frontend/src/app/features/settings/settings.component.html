@@ -1,0 +1,85 @@
+<section class="account-page">
+  <header class="page-heading">
+    <h1>Ajustes</h1>
+    <p>Configura la seguridad y el acceso a tu cuenta.</p>
+  </header>
+
+  <div class="settings-grid">
+    <section class="account-card">
+      <form [formGroup]="form" (ngSubmit)="submit()">
+        <div class="form-heading">
+          <span>
+            <svg lucideKeyRound aria-hidden="true"></svg>
+          </span>
+          <div>
+            <h2>Cambiar contraseña</h2>
+            <p>Introduce tu contraseña actual antes de establecer una nueva.</p>
+          </div>
+        </div>
+
+        <label>
+          <span>Contraseña actual</span>
+          <input
+            type="password"
+            formControlName="currentPassword"
+            autocomplete="current-password"
+          >
+          @if (form.controls.currentPassword.touched && form.controls.currentPassword.invalid) {
+            <small>La contraseña debe tener al menos 8 caracteres.</small>
+          }
+        </label>
+
+        <label>
+          <span>Nueva contraseña</span>
+          <input
+            type="password"
+            formControlName="newPassword"
+            autocomplete="new-password"
+          >
+          @if (form.controls.newPassword.touched && form.controls.newPassword.invalid) {
+            <small>La contraseña debe tener al menos 8 caracteres.</small>
+          }
+        </label>
+
+        <label>
+          <span>Confirmar nueva contraseña</span>
+          <input
+            type="password"
+            formControlName="confirmPassword"
+            autocomplete="new-password"
+          >
+        </label>
+
+        <div class="account-note">
+          <svg lucideShieldCheck aria-hidden="true"></svg>
+          <span>Utiliza una contraseña diferente a la que empleas en otros servicios.</span>
+        </div>
+
+        @if (statusMessage) {
+          <p class="status-message" role="status">{{ statusMessage }}</p>
+        }
+        @if (errorMessage) {
+          <p class="error-message" role="alert">{{ errorMessage }}</p>
+        }
+
+        <div class="form-actions">
+          <button type="submit" [disabled]="isSaving">
+            <svg lucideSave aria-hidden="true"></svg>
+            {{ isSaving ? 'Actualizando...' : 'Actualizar contraseña' }}
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <section class="account-card danger-zone">
+      <div>
+        <h2>Cerrar sesión</h2>
+        <p>Finaliza la sesión abierta en este dispositivo.</p>
+      </div>
+      <button type="button" class="danger-button" (click)="logout()">
+        <svg lucideLogOut aria-hidden="true"></svg>
+        Cerrar sesión
+      </button>
+    </section>
+  </div>
+</section>

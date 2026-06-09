@@ -1,0 +1,69 @@
+<section class="account-page">
+  <header class="page-heading">
+    <h1>Perfil</h1>
+    <p>Gestiona la información que utilizamos para identificar tu cuenta.</p>
+  </header>
+
+  <section class="account-card">
+    <div class="profile-summary">
+      <span class="large-avatar" aria-hidden="true">{{ initials }}</span>
+      <div>
+        <h2>{{ user?.full_name || 'Usuario de SkillMatch' }}</h2>
+        <p>{{ user?.email }}</p>
+      </div>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <div class="form-heading">
+        <span>
+          <svg lucideUserRound aria-hidden="true"></svg>
+        </span>
+        <div>
+          <h2>Información personal</h2>
+          <p>El nombre se muestra en el menú y en tu perfil.</p>
+        </div>
+      </div>
+
+      <label>
+        <span>Nombre completo</span>
+        <input
+          type="text"
+          formControlName="fullName"
+          autocomplete="name"
+          placeholder="Tu nombre completo"
+        >
+        @if (form.controls.fullName.touched && form.controls.fullName.invalid) {
+          <small>Introduce un nombre válido.</small>
+        }
+      </label>
+
+      <label>
+        <span>Correo electrónico</span>
+        <div class="readonly-field">
+          <svg lucideAtSign aria-hidden="true"></svg>
+          <span>{{ user?.email }}</span>
+        </div>
+        <small class="field-help">El correo identifica tu cuenta y no puede modificarse.</small>
+      </label>
+
+      <div class="account-note">
+        <svg lucideShieldCheck aria-hidden="true"></svg>
+        <span>Tu información de cuenta solo es visible para ti.</span>
+      </div>
+
+      @if (statusMessage) {
+        <p class="status-message" role="status">{{ statusMessage }}</p>
+      }
+      @if (errorMessage) {
+        <p class="error-message" role="alert">{{ errorMessage }}</p>
+      }
+
+      <div class="form-actions">
+        <button type="submit" [disabled]="isSaving || form.pristine">
+          <svg lucideSave aria-hidden="true"></svg>
+          {{ isSaving ? 'Guardando...' : 'Guardar cambios' }}
+        </button>
+      </div>
+    </form>
+  </section>
+</section>

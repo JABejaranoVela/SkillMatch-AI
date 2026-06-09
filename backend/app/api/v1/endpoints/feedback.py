@@ -8,8 +8,11 @@ from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.feedback import InteractionType, UserJobInteraction
 from app.models.job import Job
+from app.models.resume import Resume
 from app.models.user import User
 from app.schemas.feedback import FeedbackCreate, FeedbackJobRead, FeedbackRead
+from app.services.embeddings.semantic import ensure_job_embedding, ensure_profile_embedding
+from app.services.matching.rules import calculate_hybrid_match
 
 router = APIRouter()
 
@@ -69,6 +72,15 @@ def list_my_feedback_jobs(
         .order_by(UserJobInteraction.created_at.desc(), UserJobInteraction.id.desc())
     ).all()
 
+    resume = db.scalar(
+        select(Resume)
+        .where(Resume.user_id == current_user.id, Resume.is_active.is_(True))
+        .order_by(Resume.created_at.desc())
+    )
+    profile = resume.profile if resume else None
+    if profile and resume:
+        ensure_profile_embedding(profile, resume.clean_text)
+
     latest_by_job: dict[int, UserJobInteraction] = {}
     for interaction in interactions:
         latest_by_job.setdefault(interaction.job_id, interaction)
@@ -80,6 +92,13 @@ def list_my_feedback_jobs(
         job = db.get(Job, interaction.job_id)
         if not job:
             continue
+        score = {
+            "final_score": 0.0,
+            "explanation": {"matching_skills": [], "missing_skills": []},
+        }
+        if profile:
+            ensure_job_embedding(job)
+            score = calculate_hybrid_match(profile, job)
         results.append(
             {
                 "id": interaction.id,
@@ -88,6 +107,10 @@ def list_my_feedback_jobs(
                 "interaction_type": interaction.interaction_type,
                 "created_at": interaction.created_at,
                 "job": job,
+                "final_score": score["final_score"],
+                "matching_skills": score["explanation"]["matching_skills"],
+                "missing_skills": score["explanation"]["missing_skills"],
             }
         )
+    db.commit()
     return results

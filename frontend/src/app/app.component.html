@@ -1,54 +1,146 @@
-<header class="app-header">
-  <a class="brand" routerLink="/">SkillMatch AI</a>
-  <button
-    type="button"
-    class="menu-toggle"
-    [class.open]="menuOpen"
-    [attr.aria-expanded]="menuOpen"
-    aria-label="Abrir menú de navegación"
-    (click)="toggleMenu()"
-  >
-    <span></span>
-    <span></span>
-    <span></span>
-  </button>
+@if (publicLayout) {
+  <div class="public-shell">
+    <router-outlet />
+  </div>
+} @else {
+<div class="app-shell">
+  <aside class="sidebar" [class.open]="sidebarOpen" aria-label="Navegación principal">
+    <div class="sidebar-header">
+      <a class="brand" routerLink="/dashboard" aria-label="SkillMatch AI - Inicio">
+        <span class="brand-text">
+          <span>SkillMatch</span>
+          <strong>AI</strong>
+        </span>
+      </a>
+      <button
+        type="button"
+        class="sidebar-close"
+        aria-label="Cerrar menú"
+        (click)="closeSidebar()"
+      >
+        <svg lucideX></svg>
+      </button>
+    </div>
 
-  <nav class="main-nav" [class.open]="menuOpen" aria-label="Principal">
-    @if (authenticated$ | async) {
-      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" (click)="closeMenu()">
-        <span class="nav-icon home-icon" aria-hidden="true"></span>
+    <nav class="sidebar-nav">
+      <a
+        routerLink="/dashboard"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+      >
+        <svg lucideHouse aria-hidden="true"></svg>
         <span>Inicio</span>
       </a>
-      <a routerLink="/resumes" routerLinkActive="active" (click)="closeMenu()">
-        <span class="nav-icon cv-icon" aria-hidden="true"></span>
-        <span>Mi CV</span>
-      </a>
-      <a routerLink="/jobs" routerLinkActive="active" (click)="closeMenu()">
-        <span class="nav-icon jobs-icon" aria-hidden="true"></span>
-        <span>Ofertas</span>
-      </a>
-      <a routerLink="/my-jobs" routerLinkActive="active" (click)="closeMenu()">
-        <span class="nav-icon saved-icon" aria-hidden="true"></span>
-        <span>Mis ofertas</span>
-      </a>
-      <button type="button" class="nav-button" (click)="logout()">Salir</button>
-    } @else {
-      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" (click)="closeMenu()">
-        <span class="nav-icon home-icon" aria-hidden="true"></span>
-        <span>Inicio</span>
-      </a>
-      <a routerLink="/login" routerLinkActive="active" (click)="closeMenu()">
-        <span class="nav-icon login-icon" aria-hidden="true"></span>
-        <span>Login</span>
-      </a>
-      <a routerLink="/register" routerLinkActive="active" (click)="closeMenu()">
-        <span class="nav-icon register-icon" aria-hidden="true"></span>
-        <span>Registro</span>
-      </a>
+
+      @if (authenticated$ | async) {
+        <a routerLink="/resumes" routerLinkActive="active">
+          <svg lucideFileUser aria-hidden="true"></svg>
+          <span>Mi CV</span>
+        </a>
+        <a routerLink="/jobs" routerLinkActive="active">
+          <svg lucideSearch aria-hidden="true"></svg>
+          <span>Explorar ofertas</span>
+        </a>
+        <a routerLink="/my-jobs" routerLinkActive="active">
+          <svg lucideBookmark aria-hidden="true"></svg>
+          <span>Mis ofertas</span>
+        </a>
+        <span class="nav-divider" aria-hidden="true"></span>
+        <a routerLink="/profile" routerLinkActive="active">
+          <svg lucideUserRound aria-hidden="true"></svg>
+          <span>Perfil</span>
+        </a>
+        <a routerLink="/settings" routerLinkActive="active">
+          <svg lucideSettings aria-hidden="true"></svg>
+          <span>Ajustes</span>
+        </a>
+      } @else {
+        <a routerLink="/login" routerLinkActive="active">
+          <svg lucideLogIn aria-hidden="true"></svg>
+          <span>Iniciar sesión</span>
+        </a>
+        <a routerLink="/register" routerLinkActive="active">
+          <svg lucideUserPlus aria-hidden="true"></svg>
+          <span>Registro</span>
+        </a>
+      }
+    </nav>
+
+    @if ((authenticated$ | async) && (user$ | async); as sidebarUser) {
+      <div class="sidebar-account">
+        <span class="avatar" aria-hidden="true">{{ initials(sidebarUser) }}</span>
+        <div>
+          <strong>{{ displayName(sidebarUser) }}</strong>
+          <span>{{ sidebarUser.email }}</span>
+        </div>
+      </div>
     }
-  </nav>
-</header>
+  </aside>
 
-<main>
-  <router-outlet />
-</main>
+  @if (sidebarOpen) {
+    <button
+      type="button"
+      class="sidebar-overlay"
+      aria-label="Cerrar navegación"
+      (click)="closeSidebar()"
+    ></button>
+  }
+
+  <div class="content-shell">
+    <header class="topbar">
+      <button
+        type="button"
+        class="menu-button"
+        aria-label="Abrir menú de navegación"
+        [attr.aria-expanded]="sidebarOpen"
+        (click)="toggleSidebar()"
+      >
+        <svg lucideMenu></svg>
+      </button>
+
+      <span class="mobile-brand">SkillMatch <strong>AI</strong></span>
+
+      @if ((authenticated$ | async) && (user$ | async); as currentUser) {
+        <div class="user-menu">
+          <button
+            type="button"
+            class="user-trigger"
+            [class.open]="userMenuOpen"
+            [attr.aria-expanded]="userMenuOpen"
+            (click)="toggleUserMenu($event)"
+          >
+            <span class="avatar" aria-hidden="true">{{ initials(currentUser) }}</span>
+            <span class="user-copy">
+              <strong>{{ displayName(currentUser) }}</strong>
+              <small>{{ currentUser.email }}</small>
+            </span>
+            <svg lucideChevronDown aria-hidden="true"></svg>
+          </button>
+
+          @if (userMenuOpen) {
+            <div class="user-dropdown">
+              <a routerLink="/profile">
+                <svg lucideUserRound aria-hidden="true"></svg>
+                Perfil
+              </a>
+              <a routerLink="/settings">
+                <svg lucideSettings aria-hidden="true"></svg>
+                Ajustes
+              </a>
+              <span class="dropdown-divider" aria-hidden="true"></span>
+              <button type="button" (click)="logout()">
+                <svg lucideLogOut aria-hidden="true"></svg>
+                Cerrar sesión
+              </button>
+            </div>
+          }
+        </div>
+      }
+    </header>
+
+    <main>
+      <router-outlet />
+    </main>
+  </div>
+</div>
+}

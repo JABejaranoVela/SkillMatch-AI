@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, tap } from 'rxjs';
+import { Observable } from 'rxjs';
 
 import { ApiService } from '../../core/api.service';
 
@@ -12,10 +12,16 @@ export interface Job {
   requirements: string | null;
   location: string | null;
   modality: string | null;
+  salary_min: number | null;
+  salary_max: number | null;
+  salary_currency: string | null;
+  contract_type: string | null;
+  published_at: string | null;
   source: string;
   external_id: string | null;
   url: string | null;
   status: string;
+  created_at: string;
 }
 
 export interface JobRecommendation {
@@ -31,6 +37,14 @@ export interface JobRecommendation {
     rules_score: number;
     semantic_score: number;
   };
+}
+
+export interface JobRecommendationPage {
+  items: JobRecommendation[];
+  total: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
 }
 
 export interface JobSourceResult {
@@ -60,6 +74,7 @@ export class JobService {
   private readonly recommendationsTtlMs = 10 * 60 * 1000;
   private recommendationsCache: {
     items: JobRecommendation[];
+    total: number;
     loadedAt: number;
   } | null = null;
 
@@ -72,9 +87,10 @@ export class JobService {
     return this.http.get<Job[]>(`${this.api.baseUrl}/jobs`);
   }
 
-  recommended(): Observable<JobRecommendation[]> {
-    return this.http.get<JobRecommendation[]>(`${this.api.baseUrl}/jobs/recommended`).pipe(
-      tap((items) => this.setRecommendedCache(items))
+  recommended(limit = 20, offset = 0): Observable<JobRecommendationPage> {
+    return this.http.get<JobRecommendationPage>(
+      `${this.api.baseUrl}/jobs/recommended`,
+      { params: { limit, offset } }
     );
   }
 
@@ -94,17 +110,23 @@ export class JobService {
     return this.http.post(`${this.api.baseUrl}/jobs/import`, formData);
   }
 
-  getCachedRecommendations(): JobRecommendation[] | null {
+  getCachedRecommendations(): { items: JobRecommendation[]; total: number } | null {
     if (!this.recommendationsCache) {
       return null;
     }
     const isFresh = Date.now() - this.recommendationsCache.loadedAt < this.recommendationsTtlMs;
-    return isFresh ? this.recommendationsCache.items : null;
+    return isFresh
+      ? {
+          items: this.recommendationsCache.items,
+          total: this.recommendationsCache.total
+        }
+      : null;
   }
 
-  setRecommendedCache(items: JobRecommendation[]): void {
+  setRecommendedCache(items: JobRecommendation[], total: number): void {
     this.recommendationsCache = {
       items,
+      total,
       loadedAt: Date.now()
     };
   }

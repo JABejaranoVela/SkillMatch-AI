@@ -1,5 +1,6 @@
 import html
 import re
+from datetime import datetime
 from typing import Any
 
 import httpx
@@ -111,6 +112,7 @@ def _normalize_offer(payload: dict, external_id: str) -> dict | None:
     description = _clean(_first(payload, "description", "profileDescription", "summary", "requirementMin"))
     requirements = _build_requirements(description)
     link = _extract_url(payload)
+    salary_min, salary_max, salary_currency = _salary(payload)
 
     return {
         "external_id": external_id,
@@ -120,6 +122,13 @@ def _normalize_offer(payload: dict, external_id: str) -> dict | None:
         "requirements": requirements,
         "location": _clean(_location(payload)) or "España",
         "modality": _infer_modality(payload, description),
+        "salary_min": salary_min,
+        "salary_max": salary_max,
+        "salary_currency": salary_currency,
+        "contract_type": _clean(_dictionary_value(payload.get("contractType"))) or None,
+        "published_at": _parse_datetime(
+            _first(payload, "published", "publicationDate", "publishedAt", "date")
+        ),
         "url": link,
     }
 
@@ -157,6 +166,53 @@ def _extract_url(payload: dict) -> str | None:
         value = payload.get(key)
         if isinstance(value, str) and value.startswith("http"):
             return value
+    return None
+
+
+def _dictionary_value(value: Any) -> str | None:
+    if isinstance(value, dict):
+        for key in ("value", "name", "label"):
+            candidate = value.get(key)
+            if isinstance(candidate, str) and candidate.strip():
+                return candidate
+    return value if isinstance(value, str) else None
+
+
+def _salary(payload: dict) -> tuple[float | None, float | None, str | None]:
+    minimum = _number(payload, "salaryMin", "minPay", "minimumSalary")
+    maximum = _number(payload, "salaryMax", "maxPay", "maximumSalary")
+    currency = _first(payload, "salaryCurrency", "currency") or ("EUR" if minimum or maximum else None)
+    return minimum, maximum, currency
+
+
+def _number(payload: dict, *keys: str) -> float | None:
+    for key in keys:
+        value = payload.get(key)
+        if isinstance(value, (int, float)):
+            return float(value)
+        if isinstance(value, str):
+            normalized = re.sub(r"[^\d,.-]", "", value).replace(".", "").replace(",", ".")
+            try:
+                return float(normalized)
+            except ValueError:
+                continue
+    return None
+
+
+def _parse_datetime(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    normalized = value.strip().replace("Z", "+00:00")
+    try:
+        parsed = datetime.fromisoformat(normalized)
+        return parsed.replace(tzinfo=None) if parsed.tzinfo else parsed
+    except ValueError:
+        pass
+    for date_format in ("%d/%m/%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(value[:10], date_format)
+        except ValueError:
+            continue
     return None
 
 

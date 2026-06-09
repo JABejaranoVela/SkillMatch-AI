@@ -9,7 +9,7 @@ from app.api.deps import get_current_user
 from app.core.security import create_access_token, hash_password, verify_password
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.auth import Token, UserCreate, UserRead
+from app.schemas.auth import PasswordChange, Token, UserCreate, UserRead, UserUpdate
 
 router = APIRouter()
 
@@ -46,3 +46,31 @@ def login(
 def me(current_user: Annotated[User, Depends(get_current_user)]) -> User:
     return current_user
 
+
+@router.patch("/me", response_model=UserRead)
+def update_me(
+    payload: UserUpdate,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> User:
+    current_user.full_name = payload.full_name.strip()
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+def change_password(
+    payload: PasswordChange,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> None:
+    if not verify_password(payload.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="La contraseña actual no es correcta")
+    if payload.current_password == payload.new_password:
+        raise HTTPException(
+            status_code=400,
+            detail="La nueva contraseña debe ser diferente de la actual",
+        )
+    current_user.hashed_password = hash_password(payload.new_password)
+    db.commit()

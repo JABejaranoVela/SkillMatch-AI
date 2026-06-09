@@ -20,3 +20,6 @@ class FeedbackRead(FeedbackCreate):
 class FeedbackJobRead(FeedbackRead):
     created_at: datetime
     job: JobRead
+    final_score: float
+    matching_skills: list[str]
+    missing_skills: list[str]

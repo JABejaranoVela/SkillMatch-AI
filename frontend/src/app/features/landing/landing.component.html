@@ -1,0 +1,261 @@
+<div class="landing-page">
+  <header class="landing-header">
+    <a class="landing-brand" href="#inicio" aria-label="SkillMatch AI - Inicio">
+      <span class="brand-mark" aria-hidden="true">
+        <svg lucideSparkles></svg>
+      </span>
+      <span>SkillMatch <strong>AI</strong></span>
+    </a>
+
+    <nav class="desktop-nav" aria-label="Navegación de la página de inicio">
+      <a href="#como-funciona">Cómo funciona</a>
+      <a href="#funciones">Funciones</a>
+      <a href="#demo">Demo</a>
+      @if (authenticated$ | async) {
+        <a routerLink="/dashboard">Mi panel</a>
+      } @else {
+        <a routerLink="/login">Acceder</a>
+      }
+    </nav>
+
+    @if (authenticated$ | async) {
+      <a class="header-cta" routerLink="/resumes">Subir mi CV</a>
+    } @else {
+      <a class="header-cta" routerLink="/register">Subir mi CV</a>
+    }
+
+    <button
+      class="mobile-menu-button"
+      type="button"
+      aria-label="Abrir navegación"
+      [attr.aria-expanded]="mobileMenuOpen"
+      (click)="toggleMenu()"
+    >
+      @if (mobileMenuOpen) {
+        <svg lucideX></svg>
+      } @else {
+        <svg lucideMenu></svg>
+      }
+    </button>
+
+    @if (mobileMenuOpen) {
+      <nav class="mobile-nav" aria-label="Navegación móvil">
+        <a href="#como-funciona" (click)="closeMenu()">Cómo funciona</a>
+        <a href="#funciones" (click)="closeMenu()">Funciones</a>
+        <a href="#demo" (click)="closeMenu()">Demo</a>
+        @if (authenticated$ | async) {
+          <a routerLink="/dashboard" (click)="closeMenu()">Ir a mi panel</a>
+          <a class="mobile-primary" routerLink="/resumes" (click)="closeMenu()">Subir mi CV</a>
+        } @else {
+          <a routerLink="/login" (click)="closeMenu()">Acceder</a>
+          <a class="mobile-primary" routerLink="/register" (click)="closeMenu()">Subir mi CV</a>
+        }
+      </nav>
+    }
+  </header>
+
+  <main id="inicio">
+    <section class="hero-section" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <span class="hero-eyebrow">
+          <svg lucideSparkles aria-hidden="true"></svg>
+          Recomendaciones laborales explicables
+        </span>
+        <h1 id="hero-title">Convierte tu CV en <span>oportunidades reales</span></h1>
+        <p class="hero-description">
+          Analizamos tu currículum, detectamos tus habilidades y te mostramos ofertas compatibles
+          con una explicación clara de por qué encajan contigo.
+        </p>
+
+        <div class="hero-actions">
+          @if (authenticated$ | async) {
+            <a class="primary-button" routerLink="/resumes">
+              <svg lucideCloudUpload aria-hidden="true"></svg>
+              Subir mi CV
+            </a>
+          } @else {
+            <a class="primary-button" routerLink="/register">
+              <svg lucideCloudUpload aria-hidden="true"></svg>
+              Subir mi CV
+            </a>
+          }
+          <a class="secondary-button" href="#como-funciona">
+            <svg lucidePlay aria-hidden="true"></svg>
+            Ver cómo funciona
+          </a>
+        </div>
+
+        <p class="trust-copy">
+          <svg lucideShieldCheck aria-hidden="true"></svg>
+          Tus datos se usan solo para analizar tu perfil y mejorar tus recomendaciones.
+        </p>
+      </div>
+
+      <div class="product-preview" id="demo" aria-label="Ejemplo visual de SkillMatch AI">
+        <div class="preview-sidebar" aria-hidden="true">
+          <span class="preview-logo">
+            <svg lucideSparkles></svg>
+            <strong>SkillMatch <em>AI</em></strong>
+          </span>
+          <span class="preview-nav active"><svg lucideFileText></svg> Resumen</span>
+          <span class="preview-nav"><svg lucideBriefcaseBusiness></svg> Ofertas</span>
+          <span class="preview-nav"><svg lucideUserRound></svg> Mi perfil</span>
+        </div>
+
+        <div class="preview-content">
+          <div class="preview-topbar">
+            <strong>Resumen profesional</strong>
+            <span>JG</span>
+          </div>
+
+          <div class="preview-grid">
+            <article class="upload-preview">
+              <span class="preview-label">Sube tu CV</span>
+              <div class="drop-preview">
+                <svg lucideCloudUpload aria-hidden="true"></svg>
+                <strong>Arrastra tu CV aquí</strong>
+                <small>PDF · Máx. 10 MB</small>
+              </div>
+              <div class="uploaded-preview">
+                <svg lucideFileText aria-hidden="true"></svg>
+                <span><strong>cv_profesional.pdf</strong><small>Analizado correctamente</small></span>
+                <svg lucideCircleCheck aria-hidden="true"></svg>
+              </div>
+            </article>
+
+            <article class="match-preview">
+              <div class="match-heading">
+                <span>Mejor coincidencia</span>
+                <strong>92%</strong>
+              </div>
+              <h2>Backend Developer</h2>
+              <p>Empresa tecnológica · Madrid · Híbrido</p>
+              <div class="skill-chips" aria-label="Habilidades coincidentes">
+                <span>Python</span>
+                <span>SQL</span>
+                <span>FastAPI</span>
+                <span>Docker</span>
+              </div>
+              <h3>¿Por qué encaja?</h3>
+              <ul>
+                <li><svg lucideCheck></svg> Experiencia con Python y APIs</li>
+                <li><svg lucideCheck></svg> Coincidencia con tecnologías clave</li>
+                <li><svg lucideCheck></svg> Modalidad alineada con tu perfil</li>
+              </ul>
+              <span class="preview-link">Ver explicación completa <svg lucideArrowRight></svg></span>
+              <button type="button" tabindex="-1">Ver oferta</button>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="benefits-section" id="funciones" aria-labelledby="functions-title">
+      <div class="section-heading">
+        <span>Funciones principales</span>
+        <h2 id="functions-title">Todo lo necesario para orientar tu búsqueda</h2>
+      </div>
+
+      <div class="benefits-grid">
+        <article>
+          <span class="feature-icon"><svg lucideFileSearch></svg></span>
+          <h3>Análisis automático del CV</h3>
+          <p>Extraemos habilidades, formación, idiomas, experiencia y tecnologías relevantes.</p>
+        </article>
+        <article>
+          <span class="feature-icon"><svg lucideTarget></svg></span>
+          <h3>Ofertas compatibles</h3>
+          <p>Comparamos tu perfil con ofertas reales y priorizamos las más adecuadas.</p>
+        </article>
+        <article>
+          <span class="feature-icon"><svg lucideBarChart3></svg></span>
+          <h3>Ranking explicable</h3>
+          <p>Te mostramos qué coincide, qué falta y por qué una oferta encaja con tu perfil.</p>
+        </article>
+        <article>
+          <span class="feature-icon"><svg lucideBrainCircuit></svg></span>
+          <h3>IA semántica</h3>
+          <p>Comparamos el significado del CV y las ofertas, no solo palabras exactas.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="workflow-section" id="como-funciona" aria-labelledby="workflow-title">
+      <div class="section-heading">
+        <span>Proceso sencillo</span>
+        <h2 id="workflow-title">Cómo funciona</h2>
+        <p>Del documento al ranking de oportunidades en cuatro pasos.</p>
+      </div>
+
+      <div class="workflow-grid">
+        <article>
+          <span class="step-number">1</span>
+          <span class="step-icon"><svg lucideCloudUpload></svg></span>
+          <h3>Sube tu CV</h3>
+          <p>Carga tu currículum en PDF de forma rápida y segura.</p>
+        </article>
+        <span class="step-arrow" aria-hidden="true"><svg lucideChevronRight></svg></span>
+        <article>
+          <span class="step-number">2</span>
+          <span class="step-icon"><svg lucideLanguages></svg></span>
+          <h3>Detectamos tu perfil</h3>
+          <p>Identificamos habilidades, formación, idiomas y experiencia.</p>
+        </article>
+        <span class="step-arrow" aria-hidden="true"><svg lucideChevronRight></svg></span>
+        <article>
+          <span class="step-number">3</span>
+          <span class="step-icon"><svg lucideSearch></svg></span>
+          <h3>Buscamos ofertas</h3>
+          <p>Comparamos ofertas reales con tu perfil profesional.</p>
+        </article>
+        <span class="step-arrow" aria-hidden="true"><svg lucideChevronRight></svg></span>
+        <article>
+          <span class="step-number">4</span>
+          <span class="step-icon"><svg lucideBarChart3></svg></span>
+          <h3>Recibes un ranking</h3>
+          <p>Ordenamos las ofertas por compatibilidad y explicamos el resultado.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="why-section" aria-labelledby="why-title">
+      <div class="why-copy">
+        <span>Decisiones con más contexto</span>
+        <h2 id="why-title">¿Por qué usar SkillMatch AI?</h2>
+        <ul>
+          <li><svg lucideCircleCheck></svg> Ahorra tiempo revisando ofertas poco relevantes.</li>
+          <li><svg lucideCircleCheck></svg> Entiende por qué una oferta es adecuada para ti.</li>
+          <li><svg lucideCircleCheck></svg> Detecta habilidades que tienes y requisitos que te faltan.</li>
+          <li><svg lucideCircleCheck></svg> Mejora tu búsqueda con recomendaciones explicables.</li>
+        </ul>
+      </div>
+
+      <div class="why-visual" aria-hidden="true">
+        <span class="visual-spark"><svg lucideSparkles></svg></span>
+        <span class="visual-briefcase"><svg lucideBriefcaseBusiness></svg></span>
+        <span class="visual-target"><svg lucideTarget></svg></span>
+      </div>
+    </section>
+
+    <section class="final-cta" aria-labelledby="cta-title">
+      <span class="cta-icon" aria-hidden="true"><svg lucideCloudUpload></svg></span>
+      <div>
+        <h2 id="cta-title">Empieza analizando tu CV</h2>
+        <p>Sube tu currículum y descubre qué ofertas encajan mejor con tu perfil.</p>
+      </div>
+      @if (authenticated$ | async) {
+        <a routerLink="/resumes">Analizar mi CV <svg lucideArrowRight></svg></a>
+      } @else {
+        <a routerLink="/register">Analizar mi CV <svg lucideArrowRight></svg></a>
+      }
+    </section>
+  </main>
+
+  <footer>
+    <a class="landing-brand" href="#inicio">
+      <span class="brand-mark" aria-hidden="true"><svg lucideSparkles></svg></span>
+      <span>SkillMatch <strong>AI</strong></span>
+    </a>
+    <p>Recomendaciones laborales inteligentes, claras y explicables.</p>
+  </footer>
+</div>

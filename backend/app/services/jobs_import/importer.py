@@ -52,6 +52,11 @@ def import_jobs_from_text(db: Session, content: str, filename: str) -> dict:
                 requirements=record.get("requirements"),
                 location=record.get("location"),
                 modality=record.get("modality"),
+                salary_min=record.get("salary_min") or None,
+                salary_max=record.get("salary_max") or None,
+                salary_currency=record.get("salary_currency"),
+                contract_type=record.get("contract_type"),
+                published_at=record.get("published_at"),
                 source=record.get("source", "import"),
                 external_id=record.get("external_id"),
                 url=record.get("url"),
@@ -75,4 +80,3 @@ def _parse_json(content: str) -> list[dict]:
 def _parse_csv(content: str) -> list[dict]:
     reader = csv.DictReader(StringIO(content))
     return [dict(row) for row in reader]
-

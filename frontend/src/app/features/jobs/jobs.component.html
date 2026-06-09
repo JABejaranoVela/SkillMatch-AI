@@ -1,107 +1,335 @@
-<section class="tool-page">
+<section class="jobs-page">
+  <header class="page-heading">
+    <span class="heading-icon" aria-hidden="true">
+      <svg lucideSparkles></svg>
+    </span>
+    <div>
+      <h1>Explorar ofertas</h1>
+      <p>Mostramos las oportunidades que mejor encajan con el perfil analizado de tu CV.</p>
+    </div>
+  </header>
+
   @if (isLoading) {
     <div class="loading-banner" role="status" aria-live="polite">
-      <span class="loading-spinner small" aria-hidden="true"></span>
+      <span class="loading-spinner" aria-hidden="true"></span>
       <div>
         <strong>{{ loadingMessage }}</strong>
         @if (slowSearch) {
-          <p>La búsqueda está tardando más de lo normal.</p>
+          <p>La búsqueda está tardando más de lo habitual.</p>
         }
       </div>
     </div>
   }
 
-  <div class="page-heading">
-    <h1>Ofertas</h1>
-    <p>Busca ofertas reales en portales españoles de empleo IT usando el perfil detectado de tu CV activo.</p>
-  </div>
-
-  <section class="upload-panel">
-    <div>
-      <h2>Buscar por perfil</h2>
-      <p>La búsqueda usa tu tipo de perfil y tus skills principales para traer ofertas de España.</p>
+  <section class="search-toolbar" aria-label="Filtros de ofertas">
+    <div class="profile-context">
+      <span class="profile-context-icon" aria-hidden="true">
+        <svg lucideUserRound></svg>
+      </span>
+      <div>
+        <strong>Búsqueda basada en tu perfil detectado</strong>
+        <span>{{ profileContext }}</span>
+      </div>
     </div>
-    <button type="button" (click)="searchForProfile()">Buscar ofertas para mi perfil</button>
+
+    <div class="filters">
+      <label class="filter-control">
+        <svg lucideMonitor aria-hidden="true"></svg>
+        <span class="visually-hidden">Modalidad</span>
+        <select [(ngModel)]="modalityFilter">
+          <option value="all">Modalidad</option>
+          <option value="remoto">Remoto</option>
+          <option value="hibrido">Híbrido</option>
+          <option value="presencial">Presencial</option>
+        </select>
+      </label>
+
+      <label class="filter-control">
+        <svg lucideEuro aria-hidden="true"></svg>
+        <span class="visually-hidden">Salario</span>
+        <select [(ngModel)]="salaryFilter">
+          <option value="all">Salario</option>
+          <option value="known">Con salario publicado</option>
+          <option value="30000">Desde 30.000 €</option>
+          <option value="40000">Desde 40.000 €</option>
+          <option value="50000">Desde 50.000 €</option>
+        </select>
+      </label>
+
+      <label class="filter-control">
+        <svg lucideMapPin aria-hidden="true"></svg>
+        <span class="visually-hidden">Ubicación</span>
+        <select [(ngModel)]="locationFilter">
+          <option value="all">Ubicación</option>
+          @for (location of locationOptions; track location) {
+            <option [value]="location">{{ location }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="filter-control">
+        <svg lucideBriefcaseBusiness aria-hidden="true"></svg>
+        <span class="visually-hidden">Tipo de puesto</span>
+        <select [(ngModel)]="roleFilter">
+          <option value="all">Tipo de puesto</option>
+          <option value="backend">Backend</option>
+          <option value="fullstack">Full Stack</option>
+          <option value="frontend">Frontend</option>
+          <option value="data">Datos e IA</option>
+          <option value="devops">DevOps y Cloud</option>
+          <option value="other">Otros perfiles</option>
+        </select>
+      </label>
+    </div>
+
+    <button
+      class="refresh-button"
+      type="button"
+      [disabled]="isLoading"
+      (click)="searchForProfile()"
+    >
+      <svg lucideRefreshCw [class.spinning]="isLoading" aria-hidden="true"></svg>
+      <span>Actualizar ofertas</span>
+    </button>
   </section>
 
   @if (statusMessage) {
-    <p class="status">{{ statusMessage }}</p>
+    <p class="status-message" role="status">{{ statusMessage }}</p>
   }
 
   @if (errorMessage) {
-    <p class="error">{{ errorMessage }}</p>
+    <p class="error-message" role="alert">{{ errorMessage }}</p>
   }
 
-  <section class="list">
-    <h2>Ofertas recomendadas</h2>
-
-    @if (isLoading && !recommendations.length) {
+  @if (isLoading && !recommendations.length) {
+    <section class="offers-list" aria-label="Cargando ofertas">
       @for (_row of skeletonRows; track $index) {
-        <article class="skeleton-card" aria-hidden="true">
-          <div>
-            <span class="skeleton-line eyebrow-line"></span>
-            <span class="skeleton-line title-line"></span>
-            <span class="skeleton-line meta-line"></span>
-            <div class="profile-grid">
-              <span class="skeleton-block"></span>
-              <span class="skeleton-block"></span>
-              <span class="skeleton-block"></span>
+        <article class="offer-card skeleton-card" aria-hidden="true">
+          <div class="skeleton-source">
+            <span class="skeleton-square"></span>
+            <span class="skeleton-line short"></span>
+            <span class="skeleton-line tiny"></span>
+          </div>
+          <div class="skeleton-content">
+            <span class="skeleton-line title"></span>
+            <span class="skeleton-line meta"></span>
+            <span class="skeleton-line body"></span>
+            <span class="skeleton-line body narrow"></span>
+            <div class="skeleton-columns">
+              <span></span>
+              <span></span>
+              <span></span>
             </div>
+          </div>
+          <div class="skeleton-actions">
+            <span></span>
+            <span></span>
+            <span></span>
           </div>
         </article>
       }
-    } @else {
-      @for (item of recommendations; track item.job.id) {
-        <article>
-          <div>
-            <div class="profile-header">
-              <div>
-                <p class="eyebrow">{{ sourceLabel(item.job.source) }} &middot; {{ item.job.modality || 'modalidad no indicada' }}</p>
-                <h3>{{ item.job.title }}</h3>
-                <p>{{ item.job.company || 'Empresa no indicada' }} &middot; {{ item.job.location || 'ubicación no indicada' }}</p>
+    </section>
+  } @else {
+    <section class="offers-list" aria-label="Ofertas recomendadas">
+      @for (item of filteredRecommendations; track item.job.id) {
+        <article
+          class="offer-card"
+          [class.offer-discarded]="isInteraction(item.job.id, 'discarded')"
+        >
+          <aside class="source-column">
+            <span class="source-logo" [ngClass]="sourceClass(item.job.source)">
+              {{ sourceInitials(item.job.source) }}
+            </span>
+            <div class="source-copy">
+              <div class="source-name">
+                <strong>{{ sourceLabel(item.job.source) }}</strong>
+                <svg
+                  lucideCheckCircle
+                  title="Fuente identificada"
+                  aria-label="Fuente identificada"
+                ></svg>
               </div>
-              <span class="profile-status">{{ item.final_score }}%</span>
+              <span>
+                <svg lucideClock aria-hidden="true"></svg>
+                {{ publicationLabel(item.job) }}
+              </span>
+            </div>
+          </aside>
+
+          <div class="offer-content">
+            <div class="offer-title-row">
+              <div>
+                <h2>{{ item.job.title }}</h2>
+                <p class="company-name">{{ item.job.company || 'Empresa no indicada' }}</p>
+              </div>
+              <div
+                class="compatibility"
+                [ngClass]="compatibilityClass(item.final_score)"
+                [attr.aria-label]="compatibilityLabel(item.final_score)"
+              >
+                <strong>{{ item.final_score }}%</strong>
+                <span>{{ compatibilityLabel(item.final_score) }}</span>
+              </div>
             </div>
 
-            <p class="summary">{{ scoreLabel(item) }}</p>
-
-            <p class="summary">{{ summary(item.job.description) }}</p>
-
-            <div class="profile-grid">
-              <div>
-                <h3>Lo que piden</h3>
-                <p>{{ item.job.requirements || 'Sin requisitos estructurados; revisa el enlace original.' }}</p>
-              </div>
-              <div>
-                <h3>Coincide contigo</h3>
-                <p>{{ item.matching_skills.join(', ') || 'Sin coincidencias exactas' }}</p>
-              </div>
-              <div>
-                <h3>IA semántica</h3>
-                <p>Compara el significado completo del CV con el texto de la oferta mediante embeddings.</p>
-              </div>
-              <div>
-                <h3>Falta o penaliza</h3>
-                <p>{{ item.missing_skills.join(', ') || 'Sin faltantes detectados' }}</p>
-              </div>
+            <div class="job-meta">
+              <span>
+                <svg lucideMapPin aria-hidden="true"></svg>
+                {{ item.job.location || 'Ubicación no indicada' }}
+              </span>
+              <span class="meta-separator" aria-hidden="true">·</span>
+              <span class="modality-badge" [ngClass]="modalityClass(item.job.modality)">
+                <svg lucideMonitor aria-hidden="true"></svg>
+                {{ modalityLabel(item.job.modality) }}
+              </span>
+              <span class="meta-separator" aria-hidden="true">·</span>
+              <span>
+                <svg lucideEuro aria-hidden="true"></svg>
+                {{ salaryLabel(item.job) }}
+              </span>
+              <span class="meta-separator" aria-hidden="true">·</span>
+              <span>
+                <svg lucideBriefcaseBusiness aria-hidden="true"></svg>
+                {{ contractLabel(item.job) }}
+              </span>
             </div>
 
-            @if (item.job.url) {
-              <a class="job-link" [href]="item.job.url" target="_blank" rel="noreferrer">
-                Ver oferta original en {{ sourceLabel(item.job.source) }}
-              </a>
-            }
+            <p class="offer-summary">{{ summary(item.job.description) }}</p>
+
+            <div class="skills-comparison">
+              <section class="skill-group requirements">
+                <h3>
+                  Lo que piden
+                  <svg
+                    lucideCircleHelp
+                    title="Tecnologías y conocimientos detectados en la oferta"
+                    aria-label="Información sobre requisitos"
+                  ></svg>
+                </h3>
+                <div class="skill-chips">
+                  @for (skill of requirementSkills(item); track skill) {
+                    <span>{{ skill }}</span>
+                  } @empty {
+                    <span class="empty-chip">Revisar oferta original</span>
+                  }
+                </div>
+              </section>
+
+              <section class="skill-group matching">
+                <h3>
+                  Coincide contigo
+                  <svg
+                    lucideCircleHelp
+                    title="Aptitudes presentes en tu CV y en la oferta"
+                    aria-label="Información sobre coincidencias"
+                  ></svg>
+                </h3>
+                <div class="skill-chips">
+                  @for (skill of item.matching_skills; track skill) {
+                    <span>
+                      <svg lucideCheckCircle aria-hidden="true"></svg>
+                      {{ skill }}
+                    </span>
+                  } @empty {
+                    <span class="empty-chip">Sin coincidencias exactas</span>
+                  }
+                </div>
+              </section>
+
+              <section class="skill-group missing">
+                <h3>
+                  Te falta
+                  <svg
+                    lucideCircleHelp
+                    title="Requisitos que no se han detectado en tu CV"
+                    aria-label="Información sobre aptitudes pendientes"
+                  ></svg>
+                </h3>
+                <div class="skill-chips">
+                  @for (skill of item.missing_skills; track skill) {
+                    <span>{{ skill }}</span>
+                  } @empty {
+                    <span class="empty-chip">Sin carencias relevantes</span>
+                  }
+                </div>
+              </section>
+            </div>
+
+            <div class="recommendation-reason">
+              <svg lucideStar aria-hidden="true"></svg>
+              <div>
+                <strong>Motivo de recomendación</strong>
+                <span>{{ recommendationReason(item) }}</span>
+              </div>
+            </div>
           </div>
 
-          <div class="actions">
-            <button type="button" (click)="sendFeedback(item, 'saved')">Guardar</button>
-            <button type="button" class="ghost-button" (click)="sendFeedback(item, 'discarded')">Descartar</button>
-            <button type="button" (click)="sendFeedback(item, 'applied')">Postulado</button>
-          </div>
+          <aside class="offer-actions" aria-label="Acciones de la oferta">
+            <button
+              type="button"
+              class="primary-action"
+              [disabled]="!item.job.url"
+              (click)="openOffer(item)"
+            >
+              <span>Ver oferta</span>
+              <svg lucideExternalLink aria-hidden="true"></svg>
+            </button>
+            <button
+              type="button"
+              [class.active]="isInteraction(item.job.id, 'saved')"
+              (click)="sendFeedback(item, 'saved')"
+            >
+              <svg lucideBookmark aria-hidden="true"></svg>
+              <span>Guardar</span>
+            </button>
+            <button
+              type="button"
+              [class.active]="isInteraction(item.job.id, 'discarded')"
+              (click)="sendFeedback(item, 'discarded')"
+            >
+              <svg lucideX aria-hidden="true"></svg>
+              <span>Descartar</span>
+            </button>
+            <button
+              type="button"
+              [class.active]="isInteraction(item.job.id, 'applied')"
+              (click)="sendFeedback(item, 'applied')"
+            >
+              <svg lucideSend aria-hidden="true"></svg>
+              <span>Postulado</span>
+            </button>
+          </aside>
         </article>
       } @empty {
-        <p class="empty">Procesa tu CV y pulsa Buscar ofertas para mi perfil.</p>
+        <div class="empty-state">
+          <svg lucideBriefcaseBusiness aria-hidden="true"></svg>
+          @if (recommendations.length) {
+            <h2>No hay ofertas con estos filtros</h2>
+            <p>Prueba otra combinación para ampliar los resultados.</p>
+            <button type="button" (click)="clearFilters()">Limpiar filtros</button>
+          } @else {
+            <h2>Aún no hay ofertas recomendadas</h2>
+            <p>Procesa tu CV y actualiza las ofertas para iniciar la búsqueda.</p>
+          }
+        </div>
       }
-    }
-  </section>
+
+      @if (hasMoreRecommendations) {
+        <div class="load-more">
+          <button type="button" [disabled]="isLoadingMore" (click)="loadMore()">
+            @if (isLoadingMore) {
+              <span class="loading-spinner" aria-hidden="true"></span>
+              <span>Cargando más ofertas...</span>
+            } @else {
+              <svg lucidePlus aria-hidden="true"></svg>
+              <span>Cargar 20 ofertas más</span>
+            }
+          </button>
+          <p>
+            Mostrando {{ recommendations.length }} de {{ totalRecommendations }} ofertas
+          </p>
+        </div>
+      }
+    </section>
+  }
 </section>

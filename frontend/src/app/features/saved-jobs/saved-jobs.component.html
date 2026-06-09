@@ -1,74 +1,275 @@
-<section class="tool-page">
-  @if (isLoading) {
-    <div class="loading-banner" role="status" aria-live="polite">
-      <span class="loading-spinner small" aria-hidden="true"></span>
-      <div>
-        <strong>{{ loadingMessage }}</strong>
-        <p>La página sigue disponible mientras se actualiza el listado.</p>
-      </div>
-    </div>
-  }
-
-  <div class="page-heading">
+<section class="saved-page">
+  <header class="page-heading">
     <h1>Mis ofertas</h1>
-    <p>Consulta las ofertas que has guardado o marcado como postuladas para hacer seguimiento.</p>
-  </div>
+    <p>Consulta y gestiona las ofertas que has guardado o marcado como postuladas.</p>
+  </header>
 
-  <section class="upload-panel">
-    <div>
-      <h2>Seguimiento personal</h2>
-      <p>Esta pantalla muestra el último estado registrado para cada oferta.</p>
+  <section class="management-toolbar" aria-label="Gestión de ofertas">
+    <div class="status-tabs" role="tablist" aria-label="Estado de las ofertas">
+      <button
+        type="button"
+        role="tab"
+        [class.active]="activeFilter === 'all'"
+        [attr.aria-selected]="activeFilter === 'all'"
+        (click)="setFilter('all')"
+      >
+        <svg lucideBriefcaseBusiness aria-hidden="true"></svg>
+        <span>Todas</span>
+        <strong>{{ offers.length }}</strong>
+      </button>
+      <button
+        type="button"
+        role="tab"
+        [class.active]="activeFilter === 'saved'"
+        [attr.aria-selected]="activeFilter === 'saved'"
+        (click)="setFilter('saved')"
+      >
+        <svg lucideBookmark aria-hidden="true"></svg>
+        <span>Guardadas</span>
+        <strong>{{ savedCount }}</strong>
+      </button>
+      <button
+        type="button"
+        role="tab"
+        [class.active]="activeFilter === 'applied'"
+        [attr.aria-selected]="activeFilter === 'applied'"
+        (click)="setFilter('applied')"
+      >
+        <svg lucideSend aria-hidden="true"></svg>
+        <span>Postuladas</span>
+        <strong>{{ appliedCount }}</strong>
+      </button>
     </div>
-    <div class="actions">
-      <button type="button" [class.ghost-button]="activeFilter !== 'all'" (click)="setFilter('all')">Todas</button>
-      <button type="button" [class.ghost-button]="activeFilter !== 'saved'" (click)="setFilter('saved')">Guardadas</button>
-      <button type="button" [class.ghost-button]="activeFilter !== 'applied'" (click)="setFilter('applied')">Postuladas</button>
+
+    <div class="toolbar-actions">
+      <label class="sort-control">
+        <svg lucideSlidersHorizontal aria-hidden="true"></svg>
+        <span class="visually-hidden">Ordenar ofertas</span>
+        <select [(ngModel)]="sortOption">
+          <option value="recent">Más recientes</option>
+          <option value="oldest">Más antiguas</option>
+          <option value="compatibility">Mayor compatibilidad</option>
+          <option value="title">Título A-Z</option>
+        </select>
+      </label>
+      <button
+        type="button"
+        class="filter-toggle"
+        [class.active]="showFilters"
+        (click)="toggleFilters()"
+      >
+        <svg lucideFilter aria-hidden="true"></svg>
+        <span>Filtros</span>
+      </button>
     </div>
   </section>
 
+  @if (showFilters) {
+    <section class="filter-panel" aria-label="Filtros adicionales">
+      <label>
+        <span>Modalidad</span>
+        <select [(ngModel)]="modalityFilter">
+          <option value="all">Todas</option>
+          <option value="remoto">Remoto</option>
+          <option value="hibrido">Híbrido</option>
+          <option value="presencial">Presencial</option>
+        </select>
+      </label>
+      <label>
+        <span>Portal de empleo</span>
+        <select [(ngModel)]="sourceFilter">
+          <option value="all">Todos</option>
+          @for (source of sourceOptions; track source.value) {
+            <option [value]="source.value">{{ source.label }}</option>
+          }
+        </select>
+      </label>
+      <button type="button" (click)="clearFilters()">
+        <svg lucideRefreshCw aria-hidden="true"></svg>
+        Limpiar filtros
+      </button>
+    </section>
+  }
+
   @if (statusMessage) {
-    <p class="status">{{ statusMessage }}</p>
+    <p class="status-message" role="status">{{ statusMessage }}</p>
   }
 
   @if (errorMessage) {
-    <p class="error">{{ errorMessage }}</p>
+    <p class="error-message" role="alert">{{ errorMessage }}</p>
   }
 
-  <section class="list">
-    <h2>Ofertas seleccionadas</h2>
-
-    @for (offer of offers; track offer.id) {
-      <article>
-        <div>
-          <div class="profile-header">
+  @if (isLoading) {
+    <section class="offers-list" aria-label="Cargando ofertas">
+      @for (_row of skeletonRows; track $index) {
+        <article class="saved-card skeleton-card" aria-hidden="true">
+          <div class="skeleton-main">
+            <span class="skeleton-square"></span>
             <div>
-              <p class="eyebrow">
-                {{ sourceLabel(offer.job.source) }} &middot; {{ offer.job.modality || 'modalidad no indicada' }}
-              </p>
-              <h3>{{ offer.job.title }}</h3>
-              <p>{{ offer.job.company || 'Empresa no indicada' }} &middot; {{ offer.job.location || 'ubicación no indicada' }}</p>
+              <span class="skeleton-line short"></span>
+              <span class="skeleton-line title"></span>
+              <span class="skeleton-line body"></span>
+              <span class="skeleton-line body narrow"></span>
             </div>
-            <span class="profile-status">{{ interactionLabel(offer.interaction_type) }}</span>
+          </div>
+          <div class="skeleton-actions">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </article>
+      }
+    </section>
+  } @else {
+    <section class="offers-list" aria-label="Ofertas seleccionadas">
+      @for (offer of filteredOffers; track offer.job.id) {
+        <article class="saved-card">
+          <div class="saved-content">
+            <div class="offer-header">
+              <span class="source-logo" [ngClass]="sourceClass(offer.job.source)">
+                {{ sourceInitials(offer.job.source) }}
+              </span>
+
+              <div class="offer-heading">
+                <div class="source-name">
+                  <span>{{ sourceLabel(offer.job.source) }}</span>
+                  <svg
+                    lucideCheckCircle
+                    title="Fuente identificada"
+                    aria-label="Fuente identificada"
+                  ></svg>
+                </div>
+                <h2>{{ offer.job.title }}</h2>
+                <p class="company-name">{{ offer.job.company || 'Empresa no indicada' }}</p>
+              </div>
+
+              <div class="offer-state">
+                <span
+                  class="state-badge"
+                  [class.applied]="offer.interaction_type === 'applied'"
+                >
+                  @if (offer.interaction_type === 'applied') {
+                    <svg lucideSend aria-hidden="true"></svg>
+                  } @else {
+                    <svg lucideBookmark aria-hidden="true"></svg>
+                  }
+                  {{ interactionLabel(offer.interaction_type) }}
+                </span>
+                <small>{{ interactionDateLabel(offer) }}</small>
+              </div>
+            </div>
+
+            <div class="job-meta">
+              <span class="modality" [ngClass]="modalityClass(offer.job.modality)">
+                <svg lucideMonitor aria-hidden="true"></svg>
+                {{ modalityLabel(offer.job.modality) }}
+              </span>
+              <span>
+                <svg lucideMapPin aria-hidden="true"></svg>
+                {{ offer.job.location || 'Ubicación no indicada' }}
+              </span>
+              <span>
+                <svg lucideEuro aria-hidden="true"></svg>
+                {{ salaryLabel(offer.job) }}
+              </span>
+              <span>
+                <svg lucideClock aria-hidden="true"></svg>
+                {{ interactionDateLabel(offer) }}
+              </span>
+            </div>
+
+            <p class="offer-summary">{{ summary(offer.job.description) }}</p>
+
+            <div class="skills-row">
+              <section class="skill-group requirements">
+                <h3>Lo que piden</h3>
+                <div class="skill-chips">
+                  @for (skill of requirementSkills(offer); track skill) {
+                    <span>{{ skill }}</span>
+                  } @empty {
+                    <span class="empty-chip">Revisar oferta original</span>
+                  }
+                </div>
+              </section>
+
+              <section class="skill-group matching">
+                <h3>Coincide contigo</h3>
+                <div class="skill-chips">
+                  @for (skill of offer.matching_skills; track skill) {
+                    <span>
+                      <svg lucideCheck aria-hidden="true"></svg>
+                      {{ skill }}
+                    </span>
+                  } @empty {
+                    <span class="empty-chip">Sin coincidencias exactas</span>
+                  }
+                </div>
+              </section>
+
+              <section class="skill-group missing">
+                <h3>Te falta</h3>
+                <div class="skill-chips">
+                  @for (skill of offer.missing_skills; track skill) {
+                    <span>{{ skill }}</span>
+                  } @empty {
+                    <span class="empty-chip">Sin carencias relevantes</span>
+                  }
+                </div>
+              </section>
+            </div>
+
+            <div class="recommendation">
+              <svg lucideStar aria-hidden="true"></svg>
+              <strong>Motivo de recomendación:</strong>
+              <span>{{ recommendationReason(offer) }}</span>
+            </div>
           </div>
 
-          <p class="summary">Registrada el {{ offer.created_at | date:'d MMM y, HH:mm' }}</p>
-          <p class="summary">{{ summary(offer.job.description) }}</p>
+          <aside class="offer-actions" aria-label="Acciones de la oferta">
+            <button
+              type="button"
+              class="primary-action"
+              [disabled]="!offer.job.url"
+              (click)="openOffer(offer)"
+            >
+              <span>Ver oferta</span>
+              <svg lucideExternalLink aria-hidden="true"></svg>
+            </button>
 
-          @if (offer.job.url) {
-            <a class="job-link" [href]="offer.job.url" target="_blank" rel="noreferrer">
-              Ver oferta original en {{ sourceLabel(offer.job.source) }}
-            </a>
-          }
-        </div>
+            @if (offer.interaction_type === 'saved') {
+              <button type="button" class="current-state" disabled>
+                <svg lucideBookmark aria-hidden="true"></svg>
+                <span>Guardada</span>
+              </button>
+              <button type="button" (click)="changeStatus(offer, 'applied')">
+                <svg lucideSend aria-hidden="true"></svg>
+                <span>Marcar postulada</span>
+              </button>
+            } @else {
+              <button type="button" class="current-state" disabled>
+                <svg lucideCheck aria-hidden="true"></svg>
+                <span>Postulada</span>
+              </button>
+              <button type="button" (click)="changeStatus(offer, 'saved')">
+                <svg lucideBookmark aria-hidden="true"></svg>
+                <span>Guardar</span>
+              </button>
+            }
 
-        <div class="actions">
-          <button type="button" (click)="changeStatus(offer, 'saved')">Guardar</button>
-          <button type="button" (click)="changeStatus(offer, 'applied')">Postulado</button>
-          <button type="button" class="ghost-button" (click)="changeStatus(offer, 'discarded')">Descartar</button>
+            <button type="button" class="discard-action" (click)="changeStatus(offer, 'discarded')">
+              <svg lucideX aria-hidden="true"></svg>
+              <span>Descartar</span>
+            </button>
+          </aside>
+        </article>
+      } @empty {
+        <div class="empty-state">
+          <svg lucideBriefcaseBusiness aria-hidden="true"></svg>
+          <h2>No hay ofertas en esta vista</h2>
+          <p>Cambia el estado seleccionado o limpia los filtros.</p>
+          <button type="button" (click)="clearFilters()">Limpiar filtros</button>
         </div>
-      </article>
-    } @empty {
-      <p class="empty">Todavía no has guardado ni marcado ofertas como postuladas.</p>
-    }
-  </section>
+      }
+    </section>
+  }
 </section>

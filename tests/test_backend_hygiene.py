@@ -4,7 +4,7 @@ import pytest
 from fastapi import HTTPException
 
 from app.api.v1.endpoints.feedback import create_feedback
-from app.api.v1.endpoints.jobs import RECOMMENDED_SOURCES
+from app.api.v1.endpoints.jobs import RECOMMENDED_SOURCES, _paginate_items
 from app.api.v1.router import api_router
 from app.models.job import Job
 from app.schemas.feedback import FeedbackCreate
@@ -93,3 +93,24 @@ def test_public_api_no_longer_exposes_matching_router() -> None:
 
 def test_recommendations_only_use_spanish_job_sources() -> None:
     assert RECOMMENDED_SOURCES == ("tecnoempleo", "infojobs")
+
+
+@pytest.mark.parametrize(
+    ("offset", "expected_items", "expected_has_more"),
+    [
+        (0, list(range(20)), True),
+        (20, list(range(20, 40)), True),
+        (40, list(range(40, 50)), False),
+        (50, [], False),
+    ],
+)
+def test_recommendation_pagination(
+    offset: int,
+    expected_items: list[int],
+    expected_has_more: bool,
+) -> None:
+    page, total, has_more = _paginate_items(list(range(50)), limit=20, offset=offset)
+
+    assert page == expected_items
+    assert total == 50
+    assert has_more is expected_has_more
