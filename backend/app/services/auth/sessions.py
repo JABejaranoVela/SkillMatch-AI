@@ -3,7 +3,7 @@ from hashlib import sha256
 import secrets
 
 from fastapi import Request, Response
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import settings
@@ -57,6 +57,27 @@ def find_session(db: Session, raw_token: str | None) -> AuthSession | None:
 def revoke_session(auth_session: AuthSession, now: datetime | None = None) -> None:
     if auth_session.revoked_at is None:
         auth_session.revoked_at = now or utc_now()
+
+
+def revoke_user_sessions(
+    db: Session,
+    user_id: int,
+    *,
+    now: datetime | None = None,
+    except_session_id: int | None = None,
+) -> int:
+    statement = (
+        update(AuthSession)
+        .where(
+            AuthSession.user_id == user_id,
+            AuthSession.revoked_at.is_(None),
+        )
+        .values(revoked_at=now or utc_now())
+    )
+    if except_session_id is not None:
+        statement = statement.where(AuthSession.id != except_session_id)
+    result = db.execute(statement)
+    return int(result.rowcount or 0)
 
 
 def is_session_active(auth_session: AuthSession, now: datetime | None = None) -> bool:

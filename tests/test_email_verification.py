@@ -18,7 +18,8 @@ from app.services.auth.account_tokens import (
     seconds_until_resend_allowed,
     utc_now,
 )
-from app.services.auth.email import FakeEmailService, build_verification_url
+from app.services.email.crypto import EmailPayloadCipher
+from app.services.email.templates import build_verification_url
 
 
 class FakeResult:
@@ -120,23 +121,8 @@ def test_build_verification_url_contains_raw_token_only_for_delivery() -> None:
     assert url.endswith("/verify-email?token=raw-token")
 
 
-def test_fake_email_service_captures_verification_link() -> None:
-    service = FakeEmailService()
-
-    message_id = service.send_verification_email(
-        recipient="user@example.com",
-        verification_url="http://localhost:4200/verify-email?token=test",
-        full_name="User",
-    )
-
-    assert message_id == "fake-1"
-    assert service.messages[0]["recipient"] == "user@example.com"
-
-
-def test_register_creates_pending_unverified_user(monkeypatch) -> None:
+def test_register_creates_pending_unverified_user() -> None:
     db = TokenSession()
-    delivered = []
-    monkeypatch.setattr(auth, "deliver_verification_email", lambda *args, **kwargs: delivered.append(kwargs))
 
     response = auth.register(
         UserCreate(
@@ -152,19 +138,18 @@ def test_register_creates_pending_unverified_user(monkeypatch) -> None:
     assert user.status == UserStatus.PENDING
     assert user.email_verified_at is None
     assert any(item.__class__.__name__ == "AccountToken" for item in db.added)
-    assert any(item.__class__.__name__ == "EmailOutbox" for item in db.added)
-    assert len(delivered) == 1
+    outbox = next(
+        item for item in db.added if item.__class__.__name__ == "EmailOutbox"
+    )
+    assert outbox.status.value == "pending"
+    assert "Password1234" not in outbox.encrypted_payload
+    payload = EmailPayloadCipher().decrypt(outbox.encrypted_payload)
+    assert payload["verification_token"]
 
 
-def test_register_does_not_reveal_existing_email(monkeypatch) -> None:
+def test_register_does_not_reveal_existing_email() -> None:
     existing_user = make_pending_user()
     db = TokenSession(scalar_value=existing_user)
-    delivered = []
-    monkeypatch.setattr(
-        auth,
-        "deliver_verification_email",
-        lambda *args, **kwargs: delivered.append(kwargs),
-    )
 
     response = auth.register(
         UserCreate(
@@ -177,7 +162,6 @@ def test_register_does_not_reveal_existing_email(monkeypatch) -> None:
 
     assert response.message == auth.REGISTRATION_MESSAGE
     assert db.added == []
-    assert delivered == []
 
 
 def test_valid_verification_token_activates_user(monkeypatch) -> None:

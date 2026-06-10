@@ -25,7 +25,7 @@
             autocomplete="current-password"
           >
           @if (form.controls.currentPassword.touched && form.controls.currentPassword.invalid) {
-            <small>La contraseña debe tener al menos 8 caracteres.</small>
+            <small>Introduce tu contraseña actual.</small>
           }
         </label>
 
@@ -37,7 +37,7 @@
             autocomplete="new-password"
           >
           @if (form.controls.newPassword.touched && form.controls.newPassword.invalid) {
-            <small>La contraseña debe tener al menos 8 caracteres.</small>
+            <small>La contraseña debe tener entre 10 y 128 caracteres.</small>
           }
         </label>
 
@@ -48,6 +48,9 @@
             formControlName="confirmPassword"
             autocomplete="new-password"
           >
+          @if (form.controls.confirmPassword.touched && form.controls.confirmPassword.hasError('mismatch')) {
+            <small>Las contraseñas no coinciden.</small>
+          }
         </label>
 
         <div class="account-note">

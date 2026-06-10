@@ -41,53 +41,105 @@ def test_update_me_normalizes_name() -> None:
     assert db.refreshes == 1
 
 
-def test_change_password_rejects_wrong_current_password() -> None:
+def test_change_password_rejects_wrong_current_password(monkeypatch) -> None:
     db = AccountSession()
-    user = SimpleNamespace(hashed_password=hash_password("actual123"))
+    user = SimpleNamespace(id=1, hashed_password=hash_password("actual123"))
+    session = SimpleNamespace(id=9)
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.auth.invalidate_account_tokens",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.auth.revoke_user_sessions",
+        lambda *_args, **_kwargs: 0,
+    )
 
     with pytest.raises(HTTPException) as exc_info:
         change_password(
             payload=PasswordChange(
                 current_password="incorrecta",
-                new_password="nueva1234",
+                new_password="nueva-segura-1234",
+                confirm_password="nueva-segura-1234",
             ),
             db=db,
             current_user=user,
+            current_session=session,
         )
 
     assert exc_info.value.status_code == 400
     assert db.commits == 0
 
 
-def test_change_password_hashes_new_password() -> None:
+def test_change_password_hashes_new_password_and_keeps_current_session(
+    monkeypatch,
+) -> None:
     db = AccountSession()
-    user = SimpleNamespace(hashed_password=hash_password("actual123"))
+    user = SimpleNamespace(
+        id=1,
+        hashed_password=hash_password("actual123"),
+        password_changed_at=None,
+    )
+    session = SimpleNamespace(id=9)
+    revoked = {}
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.auth.invalidate_account_tokens",
+        lambda *_args, **_kwargs: None,
+    )
 
-    change_password(
+    def capture_revocation(_db, user_id, *, now, except_session_id):
+        revoked.update(
+            user_id=user_id,
+            now=now,
+            except_session_id=except_session_id,
+        )
+        return 2
+
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.auth.revoke_user_sessions",
+        capture_revocation,
+    )
+
+    response = change_password(
         payload=PasswordChange(
             current_password="actual123",
-            new_password="nueva1234",
+            new_password="nueva-segura-1234",
+            confirm_password="nueva-segura-1234",
         ),
         db=db,
         current_user=user,
+        current_session=session,
     )
 
-    assert verify_password("nueva1234", user.hashed_password)
+    assert response.message == "Contrasena actualizada correctamente"
+    assert verify_password("nueva-segura-1234", user.hashed_password)
+    assert user.password_changed_at is not None
+    assert revoked["except_session_id"] == session.id
     assert db.commits == 1
 
 
-def test_change_password_rejects_reused_password() -> None:
+def test_change_password_rejects_reused_password(monkeypatch) -> None:
     db = AccountSession()
-    user = SimpleNamespace(hashed_password=hash_password("actual123"))
+    user = SimpleNamespace(id=1, hashed_password=hash_password("actual-segura"))
+    session = SimpleNamespace(id=9)
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.auth.invalidate_account_tokens",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.auth.revoke_user_sessions",
+        lambda *_args, **_kwargs: 0,
+    )
 
     with pytest.raises(HTTPException) as exc_info:
         change_password(
             payload=PasswordChange(
-                current_password="actual123",
-                new_password="actual123",
+                current_password="actual-segura",
+                new_password="actual-segura",
+                confirm_password="actual-segura",
             ),
             db=db,
             current_user=user,
+            current_session=session,
         )
 
     assert exc_info.value.status_code == 400

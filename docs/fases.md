@@ -41,19 +41,34 @@
 ## 6. Calidad - En Curso
 
 - Tests backend de autenticacion, permisos, skills y ofertas.
+- Tests de cifrado, proveedores, reintentos, recuperacion y cancelacion del outbox.
 - Tests Angular de guards.
 - Ruff, build Angular y OpenAPI.
 - Pendiente ampliar tests de componentes y pruebas end-to-end.
 
-## 7. Operacion Y Privacidad - Pendiente
+## 7. Correo Desacoplado - Completada
 
-- Recuperacion de contrasena.
-- Brevo u otro proveedor de email real.
+- Contrato `EmailService` con consola, fake y Brevo API.
+- Payload sensible cifrado en PostgreSQL.
+- Worker independiente en Docker Compose.
+- Recuperacion de entregas abandonadas y reintentos escalonados.
+- Cancelacion de correos cuyo token ya no es valido.
+
+## 8. Recuperacion De Contrasena - Completada
+
+- Solicitud publica con respuesta generica y limite horario.
+- Token de 60 minutos, hasheado y de un solo uso.
+- Correo `password_reset` con payload cifrado y worker existente.
+- Reset con revocacion total de sesiones.
+- Cambio autenticado con revocacion de las demas sesiones.
+
+## 9. Operacion Y Privacidad - Pendiente
+
 - Borrado de cuenta/CV y retencion de datos.
 - Logs estructurados, metricas y alertas.
 - Backups y despliegue productivo.
 
-## 8. Aprendizaje Supervisado - Futuro
+## 10. Aprendizaje Supervisado - Futuro
 
 - Construir dataset etiquetado CV-oferta.
 - Definir metricas offline.

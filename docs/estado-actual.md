@@ -1,6 +1,6 @@
 # Estado Actual
 
-Actualizado: 10 de junio de 2026.
+Actualizado: 11 de junio de 2026.
 
 ## Producto Implementado
 
@@ -10,7 +10,11 @@ Actualizado: 10 de junio de 2026.
 - Usuarios `pending`, `active` y `disabled`.
 - Verificacion de correo con token hasheado, validez de 24 horas y un solo uso.
 - Reenvio autenticado para usuarios pendientes con cooldown de 60 segundos.
-- `ConsoleEmailService` y registro de entregas en `email_outbox`.
+- `EmailService` desacoplado con consola, fake de tests y Brevo API.
+- `email_outbox` con payload Fernet, token asociado, intentos y ultimo error.
+- Worker separado con recuperacion de filas abandonadas y reintentos escalonados.
+- Recuperacion de contrasena con token hasheado de 60 minutos y correo encolado.
+- Cambio autenticado de contrasena conservando solo la sesion actual.
 - Subida de CV PDF/DOCX con limite de 10 MB.
 - Un unico CV activo por usuario.
 - Extraccion, normalizacion y perfil profesional estructurado.
@@ -31,6 +35,10 @@ Actualizado: 10 de junio de 2026.
 - El frontend replica esa restriccion mediante `verifiedGuard`.
 - Las contrasenas usan Argon2id y mantienen compatibilidad de migracion con bcrypt.
 - Los tokens de sesion y verificacion no se almacenan en texto plano.
+- El token incluido en un correo pendiente solo existe cifrado en `email_outbox`.
+- Los correos se cancelan si su token fue usado, caduco o se invalido por reenvio.
+- El reset revoca todas las sesiones y limita solicitudes a cinco por usuario/hora.
+- En produccion no se registran enlaces de verificacion ni tokens.
 - Los CV y el directorio `storage/` estan excluidos de Git.
 
 ## Datos Y Fuentes
@@ -54,11 +62,11 @@ Actualizado: 10 de junio de 2026.
 
 ## Calidad Verificada
 
-- 57 pruebas backend superadas.
-- 3 pruebas Angular de guards superadas.
+- 92 pruebas backend superadas.
+- 11 pruebas Angular superadas.
 - Ruff sin errores.
 - Build Angular correcto.
-- Migracion Alembic actual: `20260610_0008`.
+- Migracion Alembic actual: `20260611_0009`.
 - OpenAPI expone los endpoints de autenticacion y verificacion actuales.
 
 ## URLs Locales
@@ -70,8 +78,6 @@ Actualizado: 10 de junio de 2026.
 
 ## Pendiente
 
-- Recuperacion de contrasena.
-- Proveedor real de correo, previsiblemente Brevo.
 - Politica de borrado y retencion de datos personales.
 - Eliminacion de cuenta y CV desde la interfaz.
 - Evaluacion cuantitativa con pares CV-oferta etiquetados.

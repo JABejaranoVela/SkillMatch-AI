@@ -82,9 +82,15 @@ class EmailOutbox(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    account_token_id: Mapped[int | None] = mapped_column(
+        ForeignKey("account_tokens.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     recipient: Mapped[str] = mapped_column(String(320), index=True)
     template: Mapped[str] = mapped_column(String(100))
     variables: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict)
+    encrypted_payload: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[EmailOutboxStatus] = mapped_column(
         Enum(
             EmailOutboxStatus,
@@ -96,9 +102,16 @@ class EmailOutbox(Base):
     attempts: Mapped[int] = mapped_column(default=0)
     next_attempt_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     provider_message_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    last_attempt_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=utc_now,
         onupdate=utc_now,
     )
+
+    account_token = relationship("AccountToken")

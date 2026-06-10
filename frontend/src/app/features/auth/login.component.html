@@ -12,6 +12,8 @@
       <input type="password" formControlName="password" autocomplete="current-password">
     </label>
 
+    <a routerLink="/forgot-password">¿Has olvidado tu contraseña?</a>
+
     @if (errorMessage) {
       <p class="error">{{ errorMessage }}</p>
     }
@@ -19,4 +21,3 @@
     <button type="submit">Entrar</button>
   </form>
 </section>
-

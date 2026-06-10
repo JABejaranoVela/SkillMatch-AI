@@ -79,8 +79,12 @@ pero las reglas permiten explicar coincidencias concretas.
 - Verificacion de correo mediante token aleatorio de 24 horas, de un solo uso y
   almacenado solo como hash.
 - Usuarios pendientes pueden autenticarse, pero no acceder a CV, ofertas o feedback.
-- `email_outbox` prepara la futura integracion de correo; en desarrollo el enlace se
-  escribe mediante `ConsoleEmailService`.
+- El token necesario para construir el correo se cifra con Fernet dentro de
+  `email_outbox`; nunca se persiste en texto plano.
+- Registro y reenvio solo encolan el correo. Un worker separado lo entrega mediante
+  consola en desarrollo o Brevo API en produccion.
+- El worker recupera entregas abandonadas, cancela tokens invalidados y reintenta a
+  los 1, 5, 15, 60 y 240 minutos.
 
 ### Arquitectura
 
@@ -91,8 +95,10 @@ Angular 18
     v
 FastAPI + SQLAlchemy + servicios NLP/matching
     |
-    v
-PostgreSQL 16 + pgvector
+    +----------> PostgreSQL 16 + pgvector + email_outbox
+                                      |
+                                      v
+                              email-worker -> Console/Brevo
 ```
 
 El backend separa autenticacion, procesamiento de CV, importacion de ofertas,
@@ -111,13 +117,15 @@ entorno local.
   atribucion y URL original, y trata InfoJobs como integracion opcional.
 - El feedback ya queda estructurado para una fase supervisada futura, pero aun no hay
   evidencia suficiente para afirmar mejora predictiva.
-- Antes de produccion faltan recuperacion de contrasena, proveedor de correo real,
-  politica de borrado/retencion y evaluacion con un conjunto de CV-oferta etiquetado.
+- Antes de produccion faltan politica de borrado/retencion, observabilidad y
+  evaluacion con un conjunto de CV-oferta etiquetado.
 
 ## Funcionalidades Actuales
 
 - Registro, login, logout y restauracion de sesion.
 - Verificacion y reenvio de correo.
+- Recuperacion de contrasena por enlace de un solo uso.
+- Cambio de contrasena con revocacion de las demas sesiones.
 - Subida y procesamiento de CV.
 - Perfil profesional estructurado.
 - Busqueda asincrona de ofertas por perfil.
@@ -160,8 +168,28 @@ Servicios:
 En desarrollo, el enlace de verificacion aparece en:
 
 ```bash
-docker compose logs backend
+docker compose logs email-worker
 ```
+
+Para produccion, genere una clave Fernet propia, mantengala estable y configure:
+
+```env
+ENVIRONMENT=production
+EMAIL_PROVIDER=brevo
+BREVO_API_KEY=...
+EMAIL_PAYLOAD_ENCRYPTION_KEY=...
+PASSWORD_RESET_TTL_MINUTES=60
+PASSWORD_RESET_MAX_REQUESTS_PER_HOUR=5
+```
+
+Puede generar la clave con:
+
+```bash
+docker compose run --rm backend python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+No cambie la clave mientras haya correos pendientes: esos payloads dejarian de poder
+descifrarse. En produccion no se registran enlaces completos ni tokens.
 
 InfoJobs es opcional. Para activarlo, configure
 `INFOJOBS_CLIENT_ID` y `INFOJOBS_CLIENT_SECRET` en `.env`.
@@ -178,10 +206,10 @@ npm run test:ci
 npm run build
 ```
 
-Estado validado el 10 de junio de 2026:
+Estado validado el 11 de junio de 2026:
 
-- 57 pruebas backend superadas.
-- 3 pruebas Angular de autorizacion superadas.
+- 92 pruebas backend superadas.
+- 11 pruebas Angular superadas.
 - Build Angular y lint backend correctos.
 
 ## Estructura

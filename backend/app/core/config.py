@@ -1,5 +1,6 @@
 from typing import Literal
 
+from cryptography.fernet import Fernet
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -25,6 +26,16 @@ class Settings(BaseSettings):
     EMAIL_PROVIDER: Literal["console", "brevo", "fake"] = "console"
     EMAIL_FROM: str = "SkillMatch AI <noreply@example.com>"
     BREVO_API_KEY: SecretStr | None = None
+    BREVO_API_URL: str = "https://api.brevo.com/v3/smtp/email"
+    EMAIL_PAYLOAD_ENCRYPTION_KEY: SecretStr = SecretStr(
+        "7NIkUe_WSF1YHO6QkZNmJjj03kT7S6KZETPBeAaT6cQ="
+    )
+    EMAIL_WORKER_POLL_SECONDS: float = Field(default=2.0, ge=0.1, le=60.0)
+    EMAIL_WORKER_BATCH_SIZE: int = Field(default=10, ge=1, le=100)
+    EMAIL_WORKER_STALE_MINUTES: int = Field(default=15, ge=1, le=1440)
+    EMAIL_HTTP_TIMEOUT_SECONDS: float = Field(default=15.0, ge=1.0, le=120.0)
+    PASSWORD_RESET_TTL_MINUTES: int = Field(default=60, ge=10, le=1440)
+    PASSWORD_RESET_MAX_REQUESTS_PER_HOUR: int = Field(default=5, ge=1, le=20)
 
     UPLOAD_DIR: str = "storage/resumes"
     SKILLS_DICTIONARY_PATH: str = "data/skills/skills.es.json"
@@ -44,6 +55,13 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_security_settings(self) -> "Settings":
+        encryption_key = self.EMAIL_PAYLOAD_ENCRYPTION_KEY.get_secret_value().strip()
+        try:
+            Fernet(encryption_key.encode())
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "EMAIL_PAYLOAD_ENCRYPTION_KEY debe ser una clave Fernet valida"
+            ) from exc
         if self.COOKIE_SAMESITE == "none" and not self.COOKIE_SECURE:
             raise ValueError("COOKIE_SECURE debe estar activo cuando COOKIE_SAMESITE=none")
         if self.ENVIRONMENT == "production":
@@ -58,6 +76,16 @@ class Settings(BaseSettings):
             )
             if self.EMAIL_PROVIDER == "brevo" and not brevo_api_key:
                 raise ValueError("BREVO_API_KEY es obligatoria con EMAIL_PROVIDER=brevo")
+            if self.EMAIL_PROVIDER != "brevo":
+                raise ValueError("EMAIL_PROVIDER debe ser brevo en produccion")
+            if (
+                not encryption_key
+                or encryption_key
+                == "7NIkUe_WSF1YHO6QkZNmJjj03kT7S6KZETPBeAaT6cQ="
+            ):
+                raise ValueError(
+                    "EMAIL_PAYLOAD_ENCRYPTION_KEY debe ser unica en produccion"
+                )
         return self
 
 

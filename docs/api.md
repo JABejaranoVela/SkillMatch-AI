@@ -11,15 +11,32 @@ La especificacion ejecutable esta disponible en `/docs` y `/api/v1/openapi.json`
 | POST | `/auth/register` | Publico | Registro generico; crea usuario pendiente si procede |
 | POST | `/auth/verify-email` | Publico | Consume token de verificacion |
 | POST | `/auth/resend-verification` | Pending | Reenvia con cooldown de 60 segundos |
+| POST | `/auth/forgot-password` | Publico | Encola recuperacion con respuesta generica |
+| POST | `/auth/reset-password` | Publico | Consume token y revoca todas las sesiones |
 | POST | `/auth/login` | Publico | Crea sesion y cookie HttpOnly |
 | POST | `/auth/logout` | Publico/sesion | Revoca la sesion y elimina cookie |
 | GET | `/auth/session` | Autenticado | Restaura usuario desde cookie |
 | GET | `/auth/me` | Autenticado | Devuelve la cuenta actual |
 | PATCH | `/auth/me` | Autenticado | Actualiza el nombre |
-| POST | `/auth/change-password` | Autenticado | Cambia la contrasena actual |
+| POST | `/auth/change-password` | Activo | Cambia la contrasena y revoca otras sesiones |
 
 `POST /auth/register` devuelve `202` y un mensaje generico tanto si el correo ya
-existe como si el registro se acepta.
+existe como si el registro se acepta. Cuando crea una cuenta, el correo queda
+encolado y la respuesta no espera a Console/Brevo.
+
+`POST /auth/resend-verification` invalida tokens anteriores, crea uno nuevo y
+encola otro correo. El worker cancelara cualquier fila anterior cuyo token ya no
+sea valido.
+
+`POST /auth/forgot-password` devuelve siempre `202` y el mismo mensaje. Solo crea
+token y outbox para usuarios activos y verificados, con un maximo de cinco
+solicitudes por usuario y hora.
+
+`POST /auth/reset-password` exige token, `new_password` y `confirm_password`. El
+token dura 60 minutos, es de un solo uso y el cambio revoca todas las sesiones.
+
+`POST /auth/change-password` exige contrasena actual, nueva y confirmacion. Mantiene
+la sesion actual y revoca las demas.
 
 ## CV
 

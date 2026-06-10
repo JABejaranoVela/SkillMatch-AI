@@ -23,9 +23,15 @@ export class SettingsComponent {
   errorMessage = '';
 
   readonly form = this.formBuilder.nonNullable.group({
-    currentPassword: ['', [Validators.required, Validators.minLength(8)]],
-    newPassword: ['', [Validators.required, Validators.minLength(8)]],
-    confirmPassword: ['', [Validators.required, Validators.minLength(8)]]
+    currentPassword: ['', [Validators.required]],
+    newPassword: [
+      '',
+      [Validators.required, Validators.minLength(10), Validators.maxLength(128)]
+    ],
+    confirmPassword: [
+      '',
+      [Validators.required, Validators.minLength(10), Validators.maxLength(128)]
+    ]
   });
 
   constructor(
@@ -41,6 +47,7 @@ export class SettingsComponent {
 
     const values = this.form.getRawValue();
     if (values.newPassword !== values.confirmPassword) {
+      this.form.controls.confirmPassword.setErrors({ mismatch: true });
       this.errorMessage = 'Las nuevas contraseñas no coinciden.';
       return;
     }
@@ -52,10 +59,14 @@ export class SettingsComponent {
     this.isSaving = true;
     this.statusMessage = '';
     this.errorMessage = '';
-    this.authService.changePassword(values.currentPassword, values.newPassword).subscribe({
-      next: () => {
+    this.authService.changePassword(
+      values.currentPassword,
+      values.newPassword,
+      values.confirmPassword
+    ).subscribe({
+      next: (response) => {
         this.isSaving = false;
-        this.statusMessage = 'Contraseña actualizada correctamente.';
+        this.statusMessage = response.message;
         this.form.reset();
       },
       error: (error) => {

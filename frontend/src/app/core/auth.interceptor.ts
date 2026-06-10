@@ -6,6 +6,8 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
   const handlesExpectedUnauthorized =
     request.url.endsWith('/auth/login') ||
     request.url.endsWith('/auth/register') ||
+    request.url.endsWith('/auth/forgot-password') ||
+    request.url.endsWith('/auth/reset-password') ||
     request.url.endsWith('/auth/session');
 
   return next(requestWithCredentials).pipe(

@@ -114,6 +114,26 @@ export class AuthService {
     );
   }
 
+  forgotPassword(email: string): Observable<AuthMessage> {
+    return this.http.post<AuthMessage>(`${this.api.baseUrl}/auth/forgot-password`, {
+      email
+    });
+  }
+
+  resetPassword(
+    token: string,
+    newPassword: string,
+    confirmPassword: string
+  ): Observable<AuthMessage> {
+    return this.http.post<AuthMessage>(`${this.api.baseUrl}/auth/reset-password`, {
+      token,
+      new_password: newPassword,
+      confirm_password: confirmPassword
+    }).pipe(
+      tap(() => this.clearSession())
+    );
+  }
+
   refreshSession(): Observable<AuthUser | null> {
     return this.http.get<AuthUser>(`${this.api.baseUrl}/auth/session`).pipe(
       tap((user) => this.setAuthenticatedUser(user)),
@@ -136,10 +156,15 @@ export class AuthService {
     );
   }
 
-  changePassword(currentPassword: string, newPassword: string): Observable<void> {
-    return this.http.post<void>(`${this.api.baseUrl}/auth/change-password`, {
+  changePassword(
+    currentPassword: string,
+    newPassword: string,
+    confirmPassword: string
+  ): Observable<AuthMessage> {
+    return this.http.post<AuthMessage>(`${this.api.baseUrl}/auth/change-password`, {
       current_password: currentPassword,
-      new_password: newPassword
+      new_password: newPassword,
+      confirm_password: confirmPassword
     });
   }
 

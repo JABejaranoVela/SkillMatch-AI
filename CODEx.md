@@ -14,6 +14,9 @@ El MVP implementa:
 - registro, login, logout y restauracion de sesion;
 - sesiones opacas almacenadas como hash y cookie HttpOnly;
 - verificacion de correo con token de 24 horas y reenvio con cooldown;
+- recuperacion de contrasena con token de 60 minutos y respuesta no enumeradora;
+- cambio de contrasena con revocacion selectiva de sesiones;
+- cola persistente de correo con payload cifrado, worker y proveedor Brevo;
 - usuarios `pending`, `active` y `disabled`;
 - subida y procesamiento de CV PDF/DOCX;
 - un unico CV activo por usuario;
@@ -27,8 +30,6 @@ El MVP implementa:
 
 No estan implementados todavia:
 
-- recuperacion de contrasena;
-- envio real mediante Brevo;
 - entrenamiento supervisado con el feedback;
 - borrado de cuenta/CV y politica completa de retencion;
 - despliegue productivo automatizado.
@@ -87,8 +88,17 @@ No estan implementados todavia:
   como SHA-256 y es de un solo uso.
 - El reenvio requiere sesion `pending`, aplica 60 segundos de cooldown e invalida
   tokens anteriores sin usar.
-- En desarrollo, `ConsoleEmailService` registra el enlace en los logs y
-  `email_outbox` conserva el estado de entrega.
+- Registro y reenvio escriben en `email_outbox` y no esperan al proveedor.
+- El payload sensible se cifra con Fernet usando
+  `EMAIL_PAYLOAD_ENCRYPTION_KEY`; las variables JSON nunca incluyen el token.
+- `email-worker` entrega por `ConsoleEmailService` en desarrollo y Brevo API en
+  produccion. Los tests usan `FakeEmailService`.
+- Los reintentos se programan a 1, 5, 15, 60 y 240 minutos. Las filas `sending`
+  abandonadas se recuperan y los correos con tokens usados, caducados o invalidados
+  se cancelan.
+- En produccion no se registran enlaces completos ni tokens.
+- La recuperacion admite cinco solicitudes por usuario y hora. El reset revoca
+  todas las sesiones; el cambio autenticado conserva solo la sesion actual.
 - Los usuarios `pending` pueden iniciar sesion, consultar la sesion, reenviar la
   verificacion y cerrar sesion.
 - CV, ofertas y feedback requieren `status=active` y `email_verified_at`.
@@ -97,7 +107,8 @@ No estan implementados todavia:
 
 ## Rutas Frontend
 
-- Publicas: `/`, `/login`, `/register`, `/verify-email`.
+- Publicas: `/`, `/login`, `/register`, `/verify-email`, `/forgot-password` y
+  `/reset-password`.
 - Estado de verificacion: `/verify-email-sent`.
 - Verificadas: `/dashboard`, `/resumes`, `/cv`, `/jobs`, `/my-jobs`,
   `/saved-jobs`, `/profile` y `/settings`.
@@ -118,6 +129,7 @@ No estan implementados todavia:
 - Mantener cambios acotados al comportamiento solicitado.
 - No introducir servicios externos obligatorios sin fallback.
 - No versionar `.env`, CVs, logs, caches, builds o bases de datos locales.
+- No cambiar `EMAIL_PAYLOAD_ENCRYPTION_KEY` mientras existan correos pendientes.
 - Crear migraciones Alembic para cualquier cambio de esquema.
 - Mantener OpenAPI alineado con la implementacion.
 - Anadir tests para autenticacion, permisos, parsing, matching y cambios de rutas.

@@ -32,18 +32,22 @@ Tokens de cuenta:
 - hash unico;
 - expiracion, uso y creacion.
 
-El proposito implementado es `email_verification`. El enum deja preparado
-`password_reset`, pero el flujo de recuperacion no esta implementado.
+Los propositos implementados son `email_verification` y `password_reset`. Ambos
+guardan solo el hash, tienen caducidad y son de un solo uso.
 
 ### `email_outbox`
 
 Cola persistente de correo:
 
-- destinatario, plantilla y variables;
-- estado, intentos y siguiente intento;
-- identificador del proveedor.
+- destinatario, plantilla y variables no sensibles;
+- FK opcional al token de cuenta que origina el correo;
+- payload sensible cifrado con Fernet;
+- estado, intentos, siguiente intento y ultimo intento;
+- identificador del proveedor y ultimo error sanitizado.
 
-Actualmente se usa con `ConsoleEmailService`.
+Estados: `pending`, `sending`, `sent`, `failed` y `cancelled`. Los payloads se
+eliminan al enviar, cancelar o agotar reintentos. La migracion `20260611_0009`
+cancela filas legacy `pending`/`sending` que no tienen payload cifrado.
 
 ## CV Y Perfil
 
@@ -119,20 +123,22 @@ resultado de matching que vio el usuario.
 ```text
 users
   |-- auth_sessions
-  |-- account_tokens
+  |-- account_tokens -- email_outbox
   |-- resumes -- professional_profiles -- profile_skills -- skills
   |-- match_results -- jobs -- job_skills -- skills
   |-- user_job_interactions -- jobs
   `-- job_search_tasks
 ```
 
-`email_outbox` no contiene una FK al usuario para mantenerlo desacoplado del tipo de
-correo y permitir otros mensajes futuros.
+`email_outbox` no contiene una FK directa al usuario. Para verificacion enlaza el
+`account_token` y mantiene `ON DELETE SET NULL`, lo que permite cancelar el mensaje
+si el token desaparece sin acoplar la cola a un unico tipo de correo.
 
 ## Principios
 
 - Separar documento, texto extraido y perfil estructurado.
 - Guardar hashes, nunca tokens de autenticacion en claro.
+- Cifrar cualquier secreto temporal que el worker necesite recuperar.
 - Versionar resultados de matching.
 - Mantener explicaciones como JSON estructurado.
 - Conservar la fuente y URL original de cada oferta.

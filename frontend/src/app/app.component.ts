@@ -132,6 +132,8 @@ export class AppComponent implements OnDestroy {
       path === '/' ||
       path === '/login' ||
       path === '/register' ||
+      path === '/forgot-password' ||
+      path === '/reset-password' ||
       path === '/verify-email' ||
       path === '/verify-email-sent'
     );

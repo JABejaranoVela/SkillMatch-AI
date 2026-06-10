@@ -5,6 +5,8 @@ import { LandingComponent } from './features/landing/landing.component';
 import { JobsComponent } from './features/jobs/jobs.component';
 import { LoginComponent } from './features/auth/login.component';
 import { RegisterComponent } from './features/auth/register.component';
+import { ForgotPasswordComponent } from './features/auth/forgot-password.component';
+import { ResetPasswordComponent } from './features/auth/reset-password.component';
 import { VerifyEmailComponent } from './features/auth/verify-email.component';
 import { VerificationSentComponent } from './features/auth/verification-sent.component';
 import { ResumesComponent } from './features/resumes/resumes.component';
@@ -17,6 +19,8 @@ export const routes: Routes = [
   { path: '', component: LandingComponent },
   { path: 'login', component: LoginComponent },
   { path: 'register', component: RegisterComponent },
+  { path: 'forgot-password', component: ForgotPasswordComponent },
+  { path: 'reset-password', component: ResetPasswordComponent },
   { path: 'verify-email', component: VerifyEmailComponent },
   {
     path: 'verify-email-sent',

@@ -29,6 +29,14 @@ services:
       EMAIL_PROVIDER: ${EMAIL_PROVIDER:-console}
       EMAIL_FROM: ${EMAIL_FROM:-SkillMatch AI <noreply@example.com>}
       BREVO_API_KEY: ${BREVO_API_KEY:-}
+      BREVO_API_URL: ${BREVO_API_URL:-https://api.brevo.com/v3/smtp/email}
+      EMAIL_PAYLOAD_ENCRYPTION_KEY: ${EMAIL_PAYLOAD_ENCRYPTION_KEY:-7NIkUe_WSF1YHO6QkZNmJjj03kT7S6KZETPBeAaT6cQ=}
+      EMAIL_WORKER_POLL_SECONDS: ${EMAIL_WORKER_POLL_SECONDS:-2}
+      EMAIL_WORKER_BATCH_SIZE: ${EMAIL_WORKER_BATCH_SIZE:-10}
+      EMAIL_WORKER_STALE_MINUTES: ${EMAIL_WORKER_STALE_MINUTES:-15}
+      EMAIL_HTTP_TIMEOUT_SECONDS: ${EMAIL_HTTP_TIMEOUT_SECONDS:-15}
+      PASSWORD_RESET_TTL_MINUTES: ${PASSWORD_RESET_TTL_MINUTES:-60}
+      PASSWORD_RESET_MAX_REQUESTS_PER_HOUR: ${PASSWORD_RESET_MAX_REQUESTS_PER_HOUR:-5}
       MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-10}
       EMBEDDINGS_ENABLED: ${EMBEDDINGS_ENABLED:-true}
       EMBEDDINGS_MODEL_NAME: ${EMBEDDINGS_MODEL_NAME:-sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2}
@@ -50,6 +58,38 @@ services:
       - ./storage:/app/storage
     depends_on:
       - db
+
+  email-worker:
+    build:
+      context: ./backend
+    container_name: skillmatch-email-worker
+    command: python -m app.workers.email_worker
+    environment:
+      DATABASE_URL: postgresql+psycopg://skillmatch:skillmatch@db:5432/skillmatch
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      SESSION_DAYS: ${SESSION_DAYS:-30}
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-skillmatch_session}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      COOKIE_SAMESITE: ${COOKIE_SAMESITE:-lax}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:4200}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-console}
+      EMAIL_FROM: ${EMAIL_FROM:-SkillMatch AI <noreply@example.com>}
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
+      BREVO_API_URL: ${BREVO_API_URL:-https://api.brevo.com/v3/smtp/email}
+      EMAIL_PAYLOAD_ENCRYPTION_KEY: ${EMAIL_PAYLOAD_ENCRYPTION_KEY:-7NIkUe_WSF1YHO6QkZNmJjj03kT7S6KZETPBeAaT6cQ=}
+      EMAIL_WORKER_POLL_SECONDS: ${EMAIL_WORKER_POLL_SECONDS:-2}
+      EMAIL_WORKER_BATCH_SIZE: ${EMAIL_WORKER_BATCH_SIZE:-10}
+      EMAIL_WORKER_STALE_MINUTES: ${EMAIL_WORKER_STALE_MINUTES:-15}
+      EMAIL_HTTP_TIMEOUT_SECONDS: ${EMAIL_HTTP_TIMEOUT_SECONDS:-15}
+      PASSWORD_RESET_TTL_MINUTES: ${PASSWORD_RESET_TTL_MINUTES:-60}
+      PASSWORD_RESET_MAX_REQUESTS_PER_HOUR: ${PASSWORD_RESET_MAX_REQUESTS_PER_HOUR:-5}
+    volumes:
+      - ./backend/app:/app/app
+      - ./tests:/app/tests
+    depends_on:
+      - db
+      - backend
 
   frontend:
     image: node:20-alpine
