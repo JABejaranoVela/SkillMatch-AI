@@ -1,0 +1,53 @@
+<section class="verification-page">
+  <article class="verification-panel">
+    <span class="verification-icon" aria-hidden="true">
+      <svg lucideMailCheck></svg>
+    </span>
+    <p class="eyebrow">Correo de verificacion enviado</p>
+    <h1>Revisa tu bandeja de entrada</h1>
+
+    @if (user$ | async; as user) {
+      @if (user.status === 'pending' || !user.email_verified_at) {
+        <p>
+          Hemos enviado un enlace a <strong>{{ user.email }}</strong>. Debes verificar
+          el correo antes de acceder a tu CV y a las ofertas.
+        </p>
+      }
+    } @else {
+      <p>
+        Si el registro es valido, recibiras un enlace de verificacion. Inicia sesion
+        para reenviarlo si fuera necesario.
+      </p>
+    }
+
+    @if (message) {
+      <p class="notice" [class.notice-error]="state === 'error' || state === 'cooldown'">
+        {{ message }}
+      </p>
+    }
+
+    <div class="verification-actions">
+      @if (user$ | async; as user) {
+        @if (user.status === 'pending' || !user.email_verified_at) {
+          <button type="button" [disabled]="state === 'sending'" (click)="resend()">
+            @if (state === 'sending') {
+              <svg class="spinner" lucideLoaderCircle aria-hidden="true"></svg>
+              Enviando
+            } @else {
+              <svg lucideRefreshCw aria-hidden="true"></svg>
+              Reenviar correo
+            }
+          </button>
+          <button class="secondary-action" type="button" (click)="logout()">
+            <svg lucideLogOut aria-hidden="true"></svg>
+            Cerrar sesion
+          </button>
+        } @else {
+          <a class="primary-action" routerLink="/resumes">Continuar a mi CV</a>
+        }
+      } @else {
+        <a class="primary-action" routerLink="/login">Iniciar sesion</a>
+      }
+    </div>
+  </article>
+</section>

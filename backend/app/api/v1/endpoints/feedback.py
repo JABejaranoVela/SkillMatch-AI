@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import get_active_user
 from app.db.session import get_db
 from app.models.feedback import InteractionType, UserJobInteraction
 from app.models.job import Job
@@ -21,7 +21,7 @@ router = APIRouter()
 def create_feedback(
     payload: FeedbackCreate,
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_active_user)],
 ) -> UserJobInteraction:
     try:
         interaction_type = InteractionType(payload.interaction_type)
@@ -46,7 +46,7 @@ def create_feedback(
 @router.get("/me", response_model=list[FeedbackRead])
 def list_my_feedback(
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_active_user)],
 ) -> list[UserJobInteraction]:
     stmt = select(UserJobInteraction).where(UserJobInteraction.user_id == current_user.id)
     return list(db.scalars(stmt))
@@ -55,7 +55,7 @@ def list_my_feedback(
 @router.get("/me/jobs", response_model=list[FeedbackJobRead])
 def list_my_feedback_jobs(
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_active_user)],
     interaction_type: str | None = None,
 ) -> list[dict]:
     if interaction_type:

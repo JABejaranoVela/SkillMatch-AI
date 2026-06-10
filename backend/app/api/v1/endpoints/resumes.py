@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import get_active_user
 from app.db.session import get_db
 from app.models.resume import Resume
 from app.models.user import User
@@ -19,7 +19,7 @@ router = APIRouter()
 def upload_resume(
     file: UploadFile,
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_active_user)],
 ) -> Resume:
     stored = save_resume_file(file, current_user.id)
     db.query(Resume).filter(Resume.user_id == current_user.id, Resume.is_active.is_(True)).update(
@@ -42,7 +42,7 @@ def upload_resume(
 @router.get("", response_model=list[ResumeRead])
 def list_resumes(
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_active_user)],
 ) -> list[Resume]:
     return list(
         db.scalars(
@@ -56,7 +56,7 @@ def list_resumes(
 @router.get("/active", response_model=ResumeRead)
 def get_active_resume(
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_active_user)],
 ) -> Resume:
     resume = db.scalar(
         select(Resume)
@@ -71,7 +71,7 @@ def get_active_resume(
 @router.get("/active/profile", response_model=ProfileRead)
 def get_active_profile(
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_active_user)],
 ):
     resume = db.scalar(
         select(Resume)
@@ -87,7 +87,7 @@ def get_active_profile(
 def get_resume(
     resume_id: int,
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_active_user)],
 ) -> Resume:
     resume = db.get(Resume, resume_id)
     if not resume or resume.user_id != current_user.id:
@@ -99,7 +99,7 @@ def get_resume(
 def get_profile(
     resume_id: int,
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_active_user)],
 ):
     resume = db.get(Resume, resume_id)
     if not resume or resume.user_id != current_user.id or not resume.profile:
@@ -111,7 +111,7 @@ def get_profile(
 def process_resume_endpoint(
     resume_id: int,
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_active_user)],
 ):
     resume = db.get(Resume, resume_id)
     if not resume or resume.user_id != current_user.id:

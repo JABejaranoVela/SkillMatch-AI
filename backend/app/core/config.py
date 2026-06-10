@@ -1,4 +1,6 @@
-from pydantic import Field
+from typing import Literal
+
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,13 +10,21 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "SkillMatch AI"
     PROJECT_VERSION: str = "0.1.0"
     API_V1_PREFIX: str = "/api/v1"
+    ENVIRONMENT: Literal["development", "test", "production"] = "development"
 
     DATABASE_URL: str = Field(
         default="postgresql+psycopg://skillmatch:skillmatch@localhost:5432/skillmatch"
     )
     SECRET_KEY: str = "change-me-in-production"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:4200"]
+    SESSION_DAYS: int = Field(default=30, ge=1, le=365)
+    SESSION_COOKIE_NAME: str = "skillmatch_session"
+    COOKIE_SECURE: bool = False
+    COOKIE_SAMESITE: Literal["lax", "strict", "none"] = "lax"
+    FRONTEND_URL: str = "http://localhost:4200"
+    EMAIL_PROVIDER: Literal["console", "brevo", "fake"] = "console"
+    EMAIL_FROM: str = "SkillMatch AI <noreply@example.com>"
+    BREVO_API_KEY: SecretStr | None = None
 
     UPLOAD_DIR: str = "storage/resumes"
     SKILLS_DICTIONARY_PATH: str = "data/skills/skills.es.json"
@@ -31,6 +41,24 @@ class Settings(BaseSettings):
     INFOJOBS_CLIENT_SECRET: str | None = None
     PROFILE_JOB_IMPORT_LIMIT: int = 12
     RECOMMENDATIONS_LIMIT: int = 50
+
+    @model_validator(mode="after")
+    def validate_security_settings(self) -> "Settings":
+        if self.COOKIE_SAMESITE == "none" and not self.COOKIE_SECURE:
+            raise ValueError("COOKIE_SECURE debe estar activo cuando COOKIE_SAMESITE=none")
+        if self.ENVIRONMENT == "production":
+            if self.SECRET_KEY == "change-me-in-production" or len(self.SECRET_KEY) < 32:
+                raise ValueError("SECRET_KEY debe ser segura en produccion")
+            if not self.COOKIE_SECURE:
+                raise ValueError("COOKIE_SECURE debe estar activo en produccion")
+            brevo_api_key = (
+                self.BREVO_API_KEY.get_secret_value().strip()
+                if self.BREVO_API_KEY
+                else ""
+            )
+            if self.EMAIL_PROVIDER == "brevo" and not brevo_api_key:
+                raise ValueError("BREVO_API_KEY es obligatoria con EMAIL_PROVIDER=brevo")
+        return self
 
 
 settings = Settings()

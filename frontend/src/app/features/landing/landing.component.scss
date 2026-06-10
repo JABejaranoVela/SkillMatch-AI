@@ -509,7 +509,8 @@ h1 span {
 }
 
 .benefits-section,
-.workflow-section {
+.workflow-section,
+.audience-section {
   padding: 78px 0 24px;
 }
 
@@ -540,7 +541,8 @@ h1 span {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.benefits-grid article {
+.benefits-grid article,
+.audience-grid article {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -567,6 +569,7 @@ h1 span {
 }
 
 .benefits-grid h3,
+.audience-grid h3,
 .workflow-grid h3 {
   color: var(--color-heading);
   font-size: 17px;
@@ -575,11 +578,20 @@ h1 span {
 }
 
 .benefits-grid p,
+.audience-grid p,
 .workflow-grid p {
   color: var(--color-muted);
   font-size: 14px;
   line-height: 1.6;
   margin: 0;
+}
+
+.audience-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0 auto;
+  max-width: 1120px;
 }
 
 .workflow-grid {
@@ -834,7 +846,7 @@ footer p {
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1120px) {
   .landing-header {
     grid-template-columns: auto 1fr auto;
   }
@@ -896,7 +908,9 @@ footer p {
     color: var(--color-surface);
     text-align: center;
   }
+}
 
+@media (max-width: 900px) {
   .workflow-grid {
     gap: 18px;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -979,6 +993,7 @@ footer p {
   }
 
   .benefits-grid,
+  .audience-grid,
   .workflow-grid {
     grid-template-columns: 1fr;
   }

@@ -19,6 +19,15 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://skillmatch:skillmatch@db:5432/skillmatch
       BACKEND_CORS_ORIGINS: '["http://localhost:4200"]'
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      SESSION_DAYS: ${SESSION_DAYS:-30}
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-skillmatch_session}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      COOKIE_SAMESITE: ${COOKIE_SAMESITE:-lax}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:4200}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-console}
+      EMAIL_FROM: ${EMAIL_FROM:-SkillMatch AI <noreply@example.com>}
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
       SKILL_NER_ENABLED: "true"
     ports:
       - "8000:8000"

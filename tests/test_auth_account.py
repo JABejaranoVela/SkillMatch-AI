@@ -1,10 +1,16 @@
 from types import SimpleNamespace
 
+import bcrypt
 import pytest
 from fastapi import HTTPException
 
 from app.api.v1.endpoints.auth import change_password, update_me
-from app.core.security import hash_password, verify_password
+from app.core.security import (
+    hash_password,
+    password_needs_rehash,
+    verify_password,
+    verify_password_and_update,
+)
 from app.schemas.auth import PasswordChange, UserUpdate
 
 
@@ -86,3 +92,31 @@ def test_change_password_rejects_reused_password() -> None:
 
     assert exc_info.value.status_code == 400
     assert db.commits == 0
+
+
+def test_new_passwords_use_argon2id() -> None:
+    hashed_password = hash_password("Password1234")
+
+    assert hashed_password.startswith("$argon2id$")
+    assert verify_password("Password1234", hashed_password)
+    assert not password_needs_rehash(hashed_password)
+
+
+def test_legacy_bcrypt_passwords_remain_valid_and_offer_upgrade() -> None:
+    legacy_hash = bcrypt.hashpw(b"Password1234", bcrypt.gensalt()).decode()
+
+    verified, upgraded_hash = verify_password_and_update("Password1234", legacy_hash)
+
+    assert verified is True
+    assert upgraded_hash is not None
+    assert upgraded_hash.startswith("$argon2id$")
+    assert verify_password("Password1234", upgraded_hash)
+
+
+def test_invalid_password_does_not_offer_hash_upgrade() -> None:
+    legacy_hash = bcrypt.hashpw(b"Password1234", bcrypt.gensalt()).decode()
+
+    verified, upgraded_hash = verify_password_and_update("incorrecta", legacy_hash)
+
+    assert verified is False
+    assert upgraded_hash is None

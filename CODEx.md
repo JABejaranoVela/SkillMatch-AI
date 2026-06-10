@@ -23,7 +23,8 @@ El MVP debe permitir:
 - NLP: spaCy, regex y diccionario propio de skills.
 - Embeddings: sentence-transformers.
 - ML futuro: pandas, numpy y scikit-learn.
-- Seguridad: JWT, passlib/bcrypt, validacion de archivos y HTTPS en produccion.
+- Seguridad: sesiones opacas en PostgreSQL, cookies HttpOnly, Argon2id con
+  compatibilidad temporal bcrypt, validacion de archivos y HTTPS en produccion.
 - Despliegue: Docker Compose, Nginx y VPS.
 
 ## Arquitectura
@@ -86,7 +87,13 @@ Toda modificacion visual del frontend debe partir de los tokens definidos en `fr
 - Escritorio: barra lateral fija con Inicio, Mi CV, Explorar ofertas, Mis ofertas, Perfil y Ajustes.
 - Movil y tablet: la barra lateral se abre como panel superpuesto mediante un boton de menu.
 - La landing, el login y el registro usan layout publico sin barra lateral.
-- Tras registrarse se inicia sesion automaticamente y se abre `/resumes`.
+- Tras registrarse se inicia sesion automaticamente y se abre
+  `/verify-email-sent` hasta confirmar el correo.
+- `/verify-email?token=...` consume un token de un solo uso con 24 horas de
+  validez. En desarrollo, ConsoleEmailService imprime el enlace en los logs.
+- Los usuarios `pending` solo pueden usar autenticacion, consultar la sesion,
+  reenviar la verificacion y cerrar sesion. CV, ofertas y feedback requieren
+  estado `active` y `email_verified_at`.
 - El menu superior de cuenta usa avatar de iniciales y permite abrir Perfil, Ajustes y Cerrar sesion.
 - Mantener las rutas `/jobs` y `/my-jobs`; sus nombres visibles son `Explorar ofertas` y `Mis ofertas`.
 

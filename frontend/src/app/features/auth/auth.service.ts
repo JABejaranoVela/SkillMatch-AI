@@ -1,26 +1,39 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Router } from '@angular/router';
-import { BehaviorSubject, Observable, switchMap, tap } from 'rxjs';
+import {
+  BehaviorSubject,
+  Observable,
+  catchError,
+  filter,
+  finalize,
+  map,
+  of,
+  switchMap,
+  take,
+  tap
+} from 'rxjs';
 
 import { ApiService } from '../../core/api.service';
-
-interface AuthToken {
-  access_token: string;
-  token_type: string;
-}
 
 export interface AuthUser {
   id: number;
   email: string;
   full_name: string | null;
   role: string;
+  status: 'pending' | 'active' | 'disabled';
+  email_verified_at: string | null;
+}
+
+export interface AuthMessage {
+  message: string;
 }
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly authenticatedSubject = new BehaviorSubject<boolean>(this.hasToken());
+  private readonly authenticatedSubject = new BehaviorSubject<boolean>(false);
   private readonly userSubject = new BehaviorSubject<AuthUser | null>(null);
+  private readonly sessionRestoredSubject = new BehaviorSubject<boolean>(false);
 
   readonly authenticated$ = this.authenticatedSubject.asObservable();
   readonly user$ = this.userSubject.asObservable();
@@ -34,11 +47,27 @@ export class AuthService {
       this.clearSession();
       void this.router.navigateByUrl('/login');
     });
-    this.restoreSession();
+    this.restoreSession().subscribe();
   }
 
   get isAuthenticated(): boolean {
-    return this.hasToken();
+    return this.authenticatedSubject.value;
+  }
+
+  waitForSession(): Observable<boolean> {
+    return this.sessionRestoredSubject.pipe(
+      filter((restored) => restored),
+      take(1),
+      map(() => this.authenticatedSubject.value)
+    );
+  }
+
+  waitForUser(): Observable<AuthUser | null> {
+    return this.sessionRestoredSubject.pipe(
+      filter((restored) => restored),
+      take(1),
+      map(() => this.userSubject.value)
+    );
   }
 
   login(email: string, password: string): Observable<AuthUser> {
@@ -46,23 +75,51 @@ export class AuthService {
       .set('username', email)
       .set('password', password);
 
-    return this.http.post<AuthToken>(`${this.api.baseUrl}/auth/login`, body).pipe(
-      tap((token) => {
-        localStorage.setItem('skillmatch_token', token.access_token);
-        this.authenticatedSubject.next(true);
-      }),
-      switchMap(() => this.loadCurrentUser())
+    return this.sessionRestoredSubject.pipe(
+      filter((restored) => restored),
+      take(1),
+      switchMap(() =>
+        this.http.post<AuthUser>(`${this.api.baseUrl}/auth/login`, body)
+      ),
+      tap((user) => this.setAuthenticatedUser(user))
     );
   }
 
-  register(email: string, password: string, fullName: string): Observable<AuthUser> {
+  register(email: string, password: string, fullName: string): Observable<AuthMessage> {
     return this.http
-      .post(`${this.api.baseUrl}/auth/register`, {
+      .post<AuthMessage>(`${this.api.baseUrl}/auth/register`, {
         email,
         password,
         full_name: fullName
+      });
+  }
+
+  verifyEmail(token: string): Observable<AuthMessage> {
+    return this.http.post<AuthMessage>(`${this.api.baseUrl}/auth/verify-email`, {
+      token
+    }).pipe(
+      switchMap((response) => {
+        if (!this.isAuthenticated) {
+          return of(response);
+        }
+        return this.refreshSession().pipe(map(() => response));
       })
-      .pipe(switchMap(() => this.login(email, password)));
+    );
+  }
+
+  resendVerification(): Observable<AuthMessage> {
+    return this.http.post<AuthMessage>(
+      `${this.api.baseUrl}/auth/resend-verification`,
+      {}
+    );
+  }
+
+  refreshSession(): Observable<AuthUser | null> {
+    return this.http.get<AuthUser>(`${this.api.baseUrl}/auth/session`).pipe(
+      tap((user) => this.setAuthenticatedUser(user)),
+      map((user) => user),
+      catchError(() => of(null))
+    );
   }
 
   loadCurrentUser(): Observable<AuthUser> {
@@ -87,28 +144,34 @@ export class AuthService {
   }
 
   logout(): void {
-    this.clearSession();
-    void this.router.navigateByUrl('/login');
+    this.http.post<void>(`${this.api.baseUrl}/auth/logout`, {}).pipe(
+      finalize(() => {
+        this.clearSession();
+        void this.router.navigateByUrl('/login');
+      })
+    ).subscribe();
   }
 
-  private restoreSession(): void {
-    if (!this.hasToken()) {
-      this.authenticatedSubject.next(false);
-      return;
-    }
+  private restoreSession(): Observable<AuthUser | null> {
+    return this.http.get<AuthUser>(`${this.api.baseUrl}/auth/session`).pipe(
+      tap((user) => this.setAuthenticatedUser(user)),
+      map((user) => user),
+      catchError(() => {
+        this.clearSession();
+        return of(null);
+      }),
+      finalize(() => this.sessionRestoredSubject.next(true))
+    );
+  }
+
+  private setAuthenticatedUser(user: AuthUser): void {
+    this.userSubject.next(user);
     this.authenticatedSubject.next(true);
-    this.loadCurrentUser().subscribe({
-      error: () => this.clearSession()
-    });
+    this.sessionRestoredSubject.next(true);
   }
 
   private clearSession(): void {
-    localStorage.removeItem('skillmatch_token');
     this.authenticatedSubject.next(false);
     this.userSubject.next(null);
-  }
-
-  private hasToken(): boolean {
-    return Boolean(localStorage.getItem('skillmatch_token'));
   }
 }

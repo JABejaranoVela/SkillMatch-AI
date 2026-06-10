@@ -35,7 +35,11 @@ export class LoginComponent {
 
     const { email, password } = this.form.getRawValue();
     this.authService.login(email, password).subscribe({
-      next: () => {
+      next: (user) => {
+        if (user.status === 'pending') {
+          void this.router.navigateByUrl('/verify-email-sent');
+          return;
+        }
         const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') || '/resumes';
         void this.router.navigateByUrl(returnUrl);
       },

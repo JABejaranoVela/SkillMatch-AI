@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
@@ -12,6 +14,8 @@ class UserRead(BaseModel):
     email: EmailStr
     full_name: str | None = None
     role: str
+    status: str
+    email_verified_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -33,6 +37,9 @@ class PasswordChange(BaseModel):
     new_password: str = Field(min_length=8, max_length=128)
 
 
-class Token(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
+class VerifyEmailRequest(BaseModel):
+    token: str = Field(min_length=32, max_length=512)
+
+
+class AuthMessage(BaseModel):
+    message: str

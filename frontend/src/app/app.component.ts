@@ -128,6 +128,12 @@ export class AppComponent implements OnDestroy {
 
   private isPublicRoute(url: string): boolean {
     const path = url.split(/[?#]/, 1)[0];
-    return path === '/' || path === '/login' || path === '/register';
+    return (
+      path === '/' ||
+      path === '/login' ||
+      path === '/register' ||
+      path === '/verify-email' ||
+      path === '/verify-email-sent'
+    );
   }
 }

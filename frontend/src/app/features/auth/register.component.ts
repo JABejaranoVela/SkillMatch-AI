@@ -34,7 +34,9 @@ export class RegisterComponent {
 
     const { email, password, fullName } = this.form.getRawValue();
     this.authService.register(email, password, fullName).subscribe({
-      next: () => this.router.navigateByUrl('/resumes'),
+      next: () => {
+        void this.router.navigateByUrl('/verify-email-sent');
+      },
       error: () => {
         this.errorMessage = 'No se pudo crear la cuenta.';
       }

@@ -7,7 +7,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, U
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
-from app.api.deps import get_current_user
+from app.api.deps import get_active_user
 from app.core.config import settings
 from app.db.session import SessionLocal, get_db
 from app.models.job import Job, JobSearchTask, JobStatus
@@ -29,7 +29,10 @@ T = TypeVar("T")
 
 
 @router.get("", response_model=list[JobRead])
-def list_jobs(db: Annotated[Session, Depends(get_db)]) -> list[Job]:
+def list_jobs(
+    db: Annotated[Session, Depends(get_db)],
+    _current_user: Annotated[User, Depends(get_active_user)],
+) -> list[Job]:
     return list(
         db.scalars(
             select(Job)
@@ -43,7 +46,7 @@ def list_jobs(db: Annotated[Session, Depends(get_db)]) -> list[Job]:
 def create_job(
     payload: JobCreate,
     db: Annotated[Session, Depends(get_db)],
-    _current_user: Annotated[User, Depends(get_current_user)],
+    _current_user: Annotated[User, Depends(get_active_user)],
 ) -> Job:
     job = Job(**payload.model_dump(mode="json"))
     db.add(job)
@@ -56,7 +59,7 @@ def create_job(
 def import_jobs(
     file: UploadFile,
     db: Annotated[Session, Depends(get_db)],
-    _current_user: Annotated[User, Depends(get_current_user)],
+    _current_user: Annotated[User, Depends(get_active_user)],
 ) -> dict:
     raw_content = file.file.read()
     content = raw_content.decode("utf-8-sig")
@@ -70,7 +73,7 @@ def import_jobs(
 def start_profile_job_search(
     background_tasks: BackgroundTasks,
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_active_user)],
     limit: int | None = None,
 ) -> JobSearchTask:
     _get_active_profile(db, current_user.id)
@@ -97,7 +100,7 @@ def start_profile_job_search(
 def get_job_search_status(
     task_id: str,
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_active_user)],
 ) -> JobSearchTask:
     task = db.scalar(
         select(JobSearchTask).where(
@@ -113,7 +116,7 @@ def get_job_search_status(
 @router.get("/recommended", response_model=JobRecommendationPage)
 def recommended_jobs(
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_active_user)],
     limit: Annotated[int, Query(ge=1, le=50)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> dict:
@@ -189,7 +192,11 @@ def recommended_jobs(
 
 
 @router.get("/{job_id}", response_model=JobRead)
-def get_job(job_id: int, db: Annotated[Session, Depends(get_db)]) -> Job:
+def get_job(
+    job_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    _current_user: Annotated[User, Depends(get_active_user)],
+) -> Job:
     job = db.get(Job, job_id)
     if not job or job.source not in RECOMMENDED_SOURCES:
         raise HTTPException(status_code=404, detail="Oferta no encontrada")

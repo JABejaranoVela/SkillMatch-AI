@@ -9,20 +9,13 @@
 
     <nav class="desktop-nav" aria-label="Navegación de la página de inicio">
       <a href="#como-funciona">Cómo funciona</a>
-      <a href="#funciones">Funciones</a>
-      <a href="#demo">Demo</a>
-      @if (authenticated$ | async) {
-        <a routerLink="/dashboard">Mi panel</a>
-      } @else {
-        <a routerLink="/login">Acceder</a>
-      }
+      <a href="#analiza-cv">Analiza tu CV</a>
+      <a href="#ofertas-compatibles">Ofertas compatibles</a>
+      <a href="#para-quien-es">Para quién es</a>
+      <a routerLink="/login">Acceder</a>
     </nav>
 
-    @if (authenticated$ | async) {
-      <a class="header-cta" routerLink="/resumes">Subir mi CV</a>
-    } @else {
-      <a class="header-cta" routerLink="/register">Subir mi CV</a>
-    }
+    <a class="header-cta" routerLink="/resumes">Subir mi CV</a>
 
     <button
       class="mobile-menu-button"
@@ -41,21 +34,17 @@
     @if (mobileMenuOpen) {
       <nav class="mobile-nav" aria-label="Navegación móvil">
         <a href="#como-funciona" (click)="closeMenu()">Cómo funciona</a>
-        <a href="#funciones" (click)="closeMenu()">Funciones</a>
-        <a href="#demo" (click)="closeMenu()">Demo</a>
-        @if (authenticated$ | async) {
-          <a routerLink="/dashboard" (click)="closeMenu()">Ir a mi panel</a>
-          <a class="mobile-primary" routerLink="/resumes" (click)="closeMenu()">Subir mi CV</a>
-        } @else {
-          <a routerLink="/login" (click)="closeMenu()">Acceder</a>
-          <a class="mobile-primary" routerLink="/register" (click)="closeMenu()">Subir mi CV</a>
-        }
+        <a href="#analiza-cv" (click)="closeMenu()">Analiza tu CV</a>
+        <a href="#ofertas-compatibles" (click)="closeMenu()">Ofertas compatibles</a>
+        <a href="#para-quien-es" (click)="closeMenu()">Para quién es</a>
+        <a routerLink="/login" (click)="closeMenu()">Acceder</a>
+        <a class="mobile-primary" routerLink="/resumes" (click)="closeMenu()">Subir mi CV</a>
       </nav>
     }
   </header>
 
   <main id="inicio">
-    <section class="hero-section" aria-labelledby="hero-title">
+    <section class="hero-section" id="analiza-cv" aria-labelledby="hero-title">
       <div class="hero-copy">
         <span class="hero-eyebrow">
           <svg lucideSparkles aria-hidden="true"></svg>
@@ -150,7 +139,11 @@
       </div>
     </section>
 
-    <section class="benefits-section" id="funciones" aria-labelledby="functions-title">
+    <section
+      class="benefits-section"
+      id="ofertas-compatibles"
+      aria-labelledby="functions-title"
+    >
       <div class="section-heading">
         <span>Funciones principales</span>
         <h2 id="functions-title">Todo lo necesario para orientar tu búsqueda</h2>
@@ -214,6 +207,32 @@
           <span class="step-icon"><svg lucideBarChart3></svg></span>
           <h3>Recibes un ranking</h3>
           <p>Ordenamos las ofertas por compatibilidad y explicamos el resultado.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="audience-section" id="para-quien-es" aria-labelledby="audience-title">
+      <div class="section-heading">
+        <span>Perfiles profesionales</span>
+        <h2 id="audience-title">¿Para quién es SkillMatch AI?</h2>
+        <p>Para personas que quieren orientar mejor su búsqueda laboral con información clara.</p>
+      </div>
+
+      <div class="audience-grid">
+        <article>
+          <span class="feature-icon"><svg lucideUserRound></svg></span>
+          <h3>Profesionales tecnológicos</h3>
+          <p>Descubre oportunidades alineadas con tus tecnologías y experiencia.</p>
+        </article>
+        <article>
+          <span class="feature-icon"><svg lucideBriefcaseBusiness></svg></span>
+          <h3>Personas en búsqueda activa</h3>
+          <p>Reduce el tiempo dedicado a revisar ofertas que no encajan contigo.</p>
+        </article>
+        <article>
+          <span class="feature-icon"><svg lucideBrainCircuit></svg></span>
+          <h3>Perfiles en evolución</h3>
+          <p>Identifica fortalezas y requisitos que puedes reforzar para nuevos puestos.</p>
         </article>
       </div>
     </section>
