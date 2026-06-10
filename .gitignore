@@ -1,15 +1,70 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Python
 __pycache__/
 *.py[cod]
+*$py.class
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
+.pyright/
+.hypothesis/
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+*.egg-info/
+build/
 .venv/
 venv/
-.env
-storage/
+env/
 
+# Angular / Node.js
 node_modules/
 dist/
 .angular/
+coverage/
+.nyc_output/
+out-tsc/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
+# Runtime data and local databases
+storage/
 postgres_data/
+*.db
+*.sqlite
+*.sqlite3
 
+# Logs and temporary files
+logs/
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+tmp/
+temp/
+
+# IDE and operating system
+.idea/
+.vscode/
+.fleet/
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local Docker overrides
+docker-compose.override.yml

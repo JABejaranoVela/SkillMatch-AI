@@ -1,43 +1,64 @@
 # Fases De Desarrollo
 
-## Fase 1: Preparacion
+## 1. Fundacion Del Proyecto - Completada
 
-Crear estructura, documentacion base, configuracion inicial y guia persistente.
+- Estructura backend/frontend/data/docs/docker.
+- FastAPI, Angular, PostgreSQL, pgvector y Docker Compose.
+- Configuracion central y migraciones Alembic.
 
-## Fase 2: Backend Base
+## 2. CV Y Perfil Profesional - Completada
 
-Crear FastAPI, configuracion, modelos iniciales, migraciones y autenticacion.
+- Subida PDF/DOCX.
+- Extraccion y normalizacion de texto.
+- Diccionario y taxonomia de skills.
+- Perfil principal/secundario, experiencia, idiomas y formacion.
+- Un unico CV activo.
 
-## Fase 3: Frontend Base
+## 3. Ofertas Y Matching - Completada Para MVP
 
-Crear Angular, rutas, layout y pantallas de autenticacion.
+- Importacion JSON tecnica.
+- Tecnoempleo como fuente principal.
+- InfoJobs opcional con credenciales.
+- Embeddings de 384 dimensiones.
+- Ranking hibrido explicable y persistido.
+- Busqueda asincrona y recomendaciones paginadas.
 
-## Fase 4: Procesamiento De CV
+## 4. Experiencia De Usuario - Completada Para MVP
 
-Subida, validacion, extraccion de texto y perfil estructurado.
+- Landing responsive.
+- Navegacion privada.
+- Mi CV, Explorar ofertas, Mis ofertas, Perfil y Ajustes.
+- Feedback de guardado, descarte y postulacion.
 
-## Fase 5: Ofertas
+## 5. Autenticacion Segura - Completada
 
-CRUD, importacion CSV/JSON y conector a API publica.
+- Usuarios, sesiones opacas y cookies HttpOnly.
+- Argon2id y migracion desde bcrypt.
+- Registro, login, logout y restauracion de sesion.
+- Verificacion de correo y usuarios pendientes.
+- Restricciones backend y guards Angular.
 
-Estado inicial: importacion CSV/JSON implementada como fallback de demo. El conector externo usa Remotive y debe mantener la URL original y la fuente visible por atribucion.
+## 6. Calidad - En Curso
 
-## Fase 6: Matching Por Reglas
+- Tests backend de autenticacion, permisos, skills y ofertas.
+- Tests Angular de guards.
+- Ruff, build Angular y OpenAPI.
+- Pendiente ampliar tests de componentes y pruebas end-to-end.
 
-Ranking explicable basado en pesos configurables.
+## 7. Operacion Y Privacidad - Pendiente
 
-## Fase 7: Embeddings
+- Recuperacion de contrasena.
+- Brevo u otro proveedor de email real.
+- Borrado de cuenta/CV y retencion de datos.
+- Logs estructurados, metricas y alertas.
+- Backups y despliegue productivo.
 
-Generacion de vectores y similitud semantica con pgvector.
+## 8. Aprendizaje Supervisado - Futuro
 
-## Fase 8: Ranking Explicable
+- Construir dataset etiquetado CV-oferta.
+- Definir metricas offline.
+- Evaluar el feedback como senal de entrenamiento.
+- Comparar el modelo aprendido con el baseline hibrido.
 
-Score hibrido, detalle de coincidencias y faltantes.
-
-## Fase 9: Feedback
-
-Registro de vistas, guardados, descartes y postulaciones.
-
-## Fase 10: Calidad Y Despliegue
-
-Tests, OpenAPI, Postman, Docker Compose, Nginx y documentacion de VPS.
+No se debe presentar esta fase como implementada hasta disponer de datos suficientes
+y una evaluacion reproducible.

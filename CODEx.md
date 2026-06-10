@@ -2,151 +2,141 @@
 
 ## Objetivo
 
-SkillMatch AI es una plataforma web inteligente para analizar curriculums y recomendar ofertas de empleo compatibles mediante IA explicable.
+SkillMatch AI es una aplicacion web que transforma un CV en un perfil profesional
+estructurado y lo compara con ofertas tecnologicas de Espana. El resultado debe ser
+util para la persona candidata y explicable: porcentaje de compatibilidad, skills
+coincidentes, skills ausentes y enlace a la oferta original.
 
-El MVP debe permitir:
-- registro e inicio de sesion;
-- subida de CV en PDF o DOCX;
-- extraccion y normalizacion de texto;
-- deteccion de habilidades, experiencia, formacion, idiomas y tecnologias;
-- carga/sincronizacion de ofertas desde una API publica con fallback CSV/JSON;
-- ranking de ofertas mediante reglas y embeddings;
-- explicacion del resultado;
-- feedback del usuario para aprendizaje supervisado futuro.
+## Estado Funcional
+
+El MVP implementa:
+
+- registro, login, logout y restauracion de sesion;
+- sesiones opacas almacenadas como hash y cookie HttpOnly;
+- verificacion de correo con token de 24 horas y reenvio con cooldown;
+- usuarios `pending`, `active` y `disabled`;
+- subida y procesamiento de CV PDF/DOCX;
+- un unico CV activo por usuario;
+- deteccion de skills, tipo de perfil, experiencia, idiomas y formacion;
+- busqueda de ofertas basada en el perfil;
+- importacion desde Tecnoempleo y, con credenciales, InfoJobs;
+- ranking hibrido por reglas y embeddings;
+- explicacion del score y feedback `saved`, `discarded` y `applied`;
+- frontend Angular responsive;
+- tests backend y tests Angular de guards.
+
+No estan implementados todavia:
+
+- recuperacion de contrasena;
+- envio real mediante Brevo;
+- entrenamiento supervisado con el feedback;
+- borrado de cuenta/CV y politica completa de retencion;
+- despliegue productivo automatizado.
 
 ## Stack
 
-- Frontend: Angular, TypeScript, HTML5 y SCSS.
-- Backend: Python, FastAPI, SQLAlchemy, Alembic y Pydantic.
-- Base de datos: PostgreSQL con pgvector.
+- Frontend: Angular 18, TypeScript, SCSS y Lucide.
+- Backend: Python 3.12, FastAPI, SQLAlchemy, Alembic y Pydantic.
+- Base de datos: PostgreSQL 16 con pgvector.
 - CV: PyMuPDF para PDF y python-docx para DOCX.
-- NLP: spaCy, regex y diccionario propio de skills.
-- Embeddings: sentence-transformers.
-- ML futuro: pandas, numpy y scikit-learn.
-- Seguridad: sesiones opacas en PostgreSQL, cookies HttpOnly, Argon2id con
-  compatibilidad temporal bcrypt, validacion de archivos y HTTPS en produccion.
-- Despliegue: Docker Compose, Nginx y VPS.
+- NLP: diccionario local, taxonomia, regex y GLiNER opcional.
+- Embeddings: `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`.
+- Seguridad: Argon2id, compatibilidad de migracion bcrypt, sesiones opacas,
+  cookies HttpOnly y tokens de cuenta hasheados.
+- Infraestructura: Docker Compose y Nginx.
 
-## Arquitectura
+## Estructura
 
-- `backend/`: API REST, autenticacion, persistencia, procesamiento de CV, matching y feedback.
-- `frontend/`: aplicacion Angular para usuario final y administracion basica.
-- `data/`: diccionario de skills y datasets semilla.
-- `docs/`: documentacion tecnica y academica.
-- `docker/`: configuracion de infraestructura.
-- `scripts/`: utilidades de importacion, seeds y mantenimiento.
+- `backend/`: API, modelos, migraciones y servicios.
+- `frontend/`: aplicacion Angular.
+- `data/skills/`: diccionario y taxonomia de skills.
+- `data/sample_jobs/`: oferta semilla para pruebas/importacion.
+- `docs/`: arquitectura, API, modelo de datos, fases y estado.
+- `docker/`: PostgreSQL y configuracion Nginx.
+- `storage/`: CVs y artefactos locales; nunca se versiona.
+- `tests/`: pruebas backend.
 
-## Fases
+## Datos
 
-1. Preparacion del proyecto y arquitectura.
-2. Backend base y base de datos.
-3. Frontend base.
-4. Subida y procesamiento de CV.
-5. Gestion de ofertas.
-6. Matching por reglas.
-7. Embeddings y similitud semantica.
-8. Ranking hibrido y explicabilidad.
-9. Feedback del usuario.
-10. Pruebas y despliegue.
+- El diccionario versionado contiene 90 skills con nombre, categoria y aliases.
+- La taxonomia local contiene 13 categorias y aliases canonicos.
+- Los CV son aportados por cada usuario y se consideran datos personales.
+- Tecnoempleo es la fuente activa por defecto. Se consulta su portal y se conserva
+  la URL original.
+- InfoJobs usa su API oficial y solo se activa con `INFOJOBS_CLIENT_ID` y
+  `INFOJOBS_CLIENT_SECRET`.
+- El repositorio no debe contener CV reales, credenciales, bases locales ni logs
+  con enlaces de verificacion.
 
-## Decisiones Cerradas
+## Reglas De Negocio
 
-- Alcance: MVP demostrable.
-- Idioma inicial: espanol.
-- Ofertas MVP: Tecnoempleo como fuente principal para Espana. Remotive queda como endpoint tecnico externo, pero la busqueda por perfil y recomendaciones normales deben priorizar Espana.
-- PDF: PyMuPDF como primera opcion.
-- IA: reglas + embeddings preentrenados; sin entrenamiento deep learning desde cero.
-- ML supervisado: preparado mediante feedback, no obligatorio para el MVP.
+- Solo puede existir un CV activo por usuario.
+- Las recomendaciones se calculan contra el CV activo y procesado.
+- Solo se recomiendan ofertas activas de `tecnoempleo` o `infojobs`.
+- El ranking usa como maximo 50 ofertas candidatas y pagina de 20 en 20.
+- El algoritmo actual es `hybrid-rules-semantic-v1`.
+- Score: 65% coincidencia de skills y 35% similitud semantica.
+- Cada resultado persiste usuario, CV, oferta, scores, explicacion y version.
+- El feedback no modifica aun el algoritmo; se almacena para trabajo futuro.
 
-## Reglas De Desarrollo
+## Autenticacion Y Autorizacion
 
-- Mantener cambios pequenos, explicables y por fases.
-- No introducir servicios externos obligatorios sin documentar fallback.
-- Versionar el algoritmo de matching en cada resultado.
-- Tratar CVs como datos personales: validar archivos, limitar acceso por usuario y no exponer rutas internas.
-- Mantener un unico CV activo por usuario en el MVP; las recomendaciones se calculan solo con ese CV activo.
-- Inferir un `profile_type` principal y un perfil secundario desde el CV para orientar la busqueda y explicar el tipo de perfil detectado.
-- La extraccion no entrena modelos propios: usa texto extraido, diccionario ampliado de skills, regex, deteccion conservadora de terminos tecnicos no registrados, taxonomia local y NER opcional con GLiNER si la dependencia `ner` esta instalada.
-- Pipeline de skills: diccionario fiable (`source=dictionary`) -> patrones tecnicos (`source=pattern`) -> NER opcional (`source=ner`) -> normalizacion canonica -> clasificacion por taxonomia -> guardado con confianza.
-- Guardar en `professional_profiles.analysis` las puntuaciones por perfil, evidencias usadas, skills agrupadas por categoria y origen de deteccion (`dictionary` o `pattern`).
-- El matching actual usa ML preentrenado mediante embeddings `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` y pgvector.
-- Score actual: 65% reglas de skills + 35% similitud semantica CV-oferta.
-- Las recomendaciones se persisten en `match_results` por usuario, CV y version del algoritmo. La API entrega 20 ofertas por pagina, calcula el ranking sobre un maximo de 50 candidatas activas y el frontend anade paginas con el boton `Cargar mas`.
-- No mostrar ofertas de Arbeitnow en el flujo principal porque trae demasiadas ofertas de Alemania. Para el MVP, `/jobs/recommended` y `/matching/active` filtran por `source = tecnoempleo`.
-- Documentar endpoints relevantes mediante OpenAPI/FastAPI.
-- Anadir tests al cerrar cada comportamiento critico.
+- El registro responde de forma generica para no revelar si un email existe.
+- Un usuario nuevo se crea como `pending` y sin `email_verified_at`.
+- El token de verificacion se genera aleatoriamente, dura 24 horas, se guarda solo
+  como SHA-256 y es de un solo uso.
+- El reenvio requiere sesion `pending`, aplica 60 segundos de cooldown e invalida
+  tokens anteriores sin usar.
+- En desarrollo, `ConsoleEmailService` registra el enlace en los logs y
+  `email_outbox` conserva el estado de entrega.
+- Los usuarios `pending` pueden iniciar sesion, consultar la sesion, reenviar la
+  verificacion y cerrar sesion.
+- CV, ofertas y feedback requieren `status=active` y `email_verified_at`.
+- Las contrasenas nuevas usan Argon2id; hashes bcrypt existentes se actualizan al
+  iniciar sesion correctamente.
+
+## Rutas Frontend
+
+- Publicas: `/`, `/login`, `/register`, `/verify-email`.
+- Estado de verificacion: `/verify-email-sent`.
+- Verificadas: `/dashboard`, `/resumes`, `/cv`, `/jobs`, `/my-jobs`,
+  `/saved-jobs`, `/profile` y `/settings`.
+- `verifiedGuard` bloquea rutas privadas para usuarios no verificados.
+- `pendingGuard` controla la pantalla de correo enviado.
 
 ## Sistema Visual
 
-Toda modificacion visual del frontend debe partir de los tokens definidos en `frontend/src/styles.scss`. No usar colores hexadecimales, sombras, radios ni fuentes nuevas directamente en componentes salvo que antes se registren como token global y se documenten aqui.
+- Los tokens globales viven en `frontend/src/styles.scss`.
+- No introducir colores, radios, sombras o fuentes locales si existe un token.
+- Fuente base: Inter con fallbacks del sistema.
+- Navegacion privada: sidebar en escritorio y panel superpuesto en movil.
+- Landing y autenticacion usan layout publico.
+- Nombres visibles principales: `Mi CV`, `Explorar ofertas` y `Mis ofertas`.
 
-### Navegacion
+## Desarrollo
 
-- `/` es la landing publica y permanece accesible aunque exista una sesion.
-- `/dashboard` es el inicio privado protegido.
-- Escritorio: barra lateral fija con Inicio, Mi CV, Explorar ofertas, Mis ofertas, Perfil y Ajustes.
-- Movil y tablet: la barra lateral se abre como panel superpuesto mediante un boton de menu.
-- La landing, el login y el registro usan layout publico sin barra lateral.
-- Tras registrarse se inicia sesion automaticamente y se abre
-  `/verify-email-sent` hasta confirmar el correo.
-- `/verify-email?token=...` consume un token de un solo uso con 24 horas de
-  validez. En desarrollo, ConsoleEmailService imprime el enlace en los logs.
-- Los usuarios `pending` solo pueden usar autenticacion, consultar la sesion,
-  reenviar la verificacion y cerrar sesion. CV, ofertas y feedback requieren
-  estado `active` y `email_verified_at`.
-- El menu superior de cuenta usa avatar de iniciales y permite abrir Perfil, Ajustes y Cerrar sesion.
-- Mantener las rutas `/jobs` y `/my-jobs`; sus nombres visibles son `Explorar ofertas` y `Mis ofertas`.
+- Mantener cambios acotados al comportamiento solicitado.
+- No introducir servicios externos obligatorios sin fallback.
+- No versionar `.env`, CVs, logs, caches, builds o bases de datos locales.
+- Crear migraciones Alembic para cualquier cambio de esquema.
+- Mantener OpenAPI alineado con la implementacion.
+- Anadir tests para autenticacion, permisos, parsing, matching y cambios de rutas.
+- No reintroducir JWT/localStorage ni el antiguo router `/matching`.
 
-### Fuente
+## Verificacion
 
-- Fuente unica de la aplicacion: `Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`.
-- Usar `var(--font-family-base)` indirectamente desde `:root`; no declarar `font-family` en componentes salvo caso excepcional.
+```bash
+docker compose exec backend pytest -q
+docker compose exec backend ruff check app tests
+cd frontend
+npm run test:ci
+npm run build
+```
 
-### Colores Base
+## Referencias
 
-- Fondo de pagina: `--color-bg` (`#f5f7fa`).
-- Superficie principal: `--color-surface` (`#ffffff`).
-- Superficie suave: `--color-surface-soft` (`#f8fafc`).
-- Bordes: `--color-border` (`#e2e8f0`) y `--color-border-strong` (`#d0d5dd`).
-- Texto principal: `--color-text` (`#18202f`).
-- Titulos: `--color-heading` (`#101828`).
-- Texto secundario: `--color-muted` (`#667085`).
-- Texto de cuerpo/menus: `--color-body` (`#344054`).
-
-### Colores De Marca Y Estados
-
-- Primario/brand: `--color-primary` (`#047857`).
-- Primario fuerte para botones/iconos: `--color-primary-strong` (`#0f766e`).
-- Primario suave para fondos activos: `--color-primary-soft` (`#ecfdf5`).
-- Chips verdes: `--color-primary-chip` (`#dff5ee`).
-- Bordes verdes: `--color-primary-border` (`#b7e4cf`).
-- Acento naranja para perfil detectado: `--color-accent` (`#f97316`).
-- Fondo acento: `--color-accent-soft` (`#fff7ed`).
-- Borde acento: `--color-accent-border` (`#fed7aa`).
-- Informacion azul: `--color-info` (`#2563eb`) y `--color-info-soft` (`#eff6ff`).
-- Exito: `--color-success` (`#15803d`) y `--color-success-soft` (`#dcfce7`).
-- Error: `--color-danger` (`#b42318`) y `--color-danger-soft` (`#fff1f2`).
-- Documento PDF: `--color-document-pdf` (`#ef4444`).
-
-### Radios, Sombras Y Espaciado
-
-- Radio pequeno: `--radius-sm` (`8px`).
-- Radio medio: `--radius-md` (`10px`).
-- Radio grande de tarjetas/paneles: `--radius-lg` (`14px`).
-- Pastillas/chips: `--radius-pill` (`999px`).
-- Sombra header: `--shadow-sm`.
-- Sombra tarjetas: `--shadow-md`.
-- Sombra panel desplegable: `--shadow-lg`.
-- Padding horizontal de pagina: `--page-padding`.
-
-### Reglas De Uso
-
-- Botones primarios: fondo con `--color-primary-strong` o gradiente registrado basado en primarios.
-- Estados activos de navegacion: `--color-primary` y `--color-primary-soft`.
-- Tarjetas: `--color-surface`, `--color-border`, `--radius-lg`, `--shadow-md`.
-- Texto informativo: `--color-muted`.
-- No introducir paletas nuevas por pantalla; si hace falta un color nuevo, justificarlo y registrarlo aqui.
-
-## Estado
-
-Consultar `docs/estado-actual.md` antes de continuar. El stack Docker queda preparado con frontend en `http://localhost:4200` y backend en `http://localhost:8000`.
+- Estado: `docs/estado-actual.md`
+- Arquitectura: `docs/arquitectura.md`
+- API: `docs/api.md`
+- Modelo de datos: `docs/modelo-datos.md`
+- Fases: `docs/fases.md`

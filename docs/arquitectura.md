@@ -2,51 +2,103 @@
 
 ## Vision General
 
-SkillMatch AI se organiza como una aplicacion web separada en frontend, backend y base de datos.
-
-- Angular consume una API REST.
-- FastAPI concentra la logica de negocio, IA, matching y persistencia.
-- PostgreSQL guarda usuarios, CVs, perfiles, ofertas, resultados y feedback.
-- pgvector permite similitud semantica entre perfiles y ofertas.
-
-## Componentes
-
-### Frontend
-
-Responsable de la experiencia de usuario:
-- autenticacion;
-- subida de CV;
-- visualizacion del perfil extraido;
-- ranking de ofertas;
-- explicacion de compatibilidad;
-- feedback.
-
-### Backend
-
-Responsable de:
-- seguridad y sesiones;
-- validacion de archivos;
-- extraccion de texto;
-- normalizacion NLP;
-- gestion de ofertas;
-- calculo de matching;
-- persistencia de feedback.
-
-### Base De Datos
-
-PostgreSQL sera la fuente de verdad. Los documentos se almacenaran inicialmente en filesystem y la base guardara metadatos y rutas internas.
-
-### IA Y Matching
-
-El MVP usara un enfoque hibrido:
-- reglas ponderadas para skills, experiencia, formacion e idiomas;
-- embeddings para similitud semantica con `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`;
-- explicaciones derivadas de coincidencias y penalizaciones.
-
-El porcentaje mostrado al usuario se calcula como:
+SkillMatch AI usa una arquitectura web de tres capas:
 
 ```text
-score final = 65% score por skills detectadas + 35% score semantico por embeddings
+Angular 18
+    |
+    | REST + cookie HttpOnly
+    v
+FastAPI / SQLAlchemy / servicios de dominio
+    |
+    v
+PostgreSQL 16 + pgvector
 ```
 
-Los embeddings se guardan en las columnas vectoriales de `professional_profiles.embedding` y `jobs.embedding`.
+Docker Compose levanta base de datos, backend y frontend. Nginx sirve la aplicacion
+compilada en la imagen de produccion y redirige `/api` a FastAPI.
+
+## Frontend
+
+La aplicacion Angular contiene:
+
+- `core/`: interceptor de credenciales y guards.
+- `features/auth/`: login, registro y verificacion de correo.
+- `features/resumes/`: subida, procesamiento y perfil extraido.
+- `features/jobs/`: busqueda y recomendaciones.
+- `features/saved-jobs/`: ofertas guardadas/postuladas.
+- `features/profile/` y `features/settings/`: cuenta.
+
+`AuthService` restaura la sesion al arrancar. `verifiedGuard` exige usuario activo y
+correo verificado en las rutas privadas.
+
+## Backend
+
+FastAPI organiza la API en:
+
+- `api/deps.py`: sesion actual, usuario actual, usuario activo y usuario pendiente.
+- `api/v1/endpoints/`: auth, resumes, jobs, feedback y health.
+- `services/auth/`: sesiones, tokens de cuenta y correo.
+- `services/cv_processing/`: almacenamiento, extraccion y perfil.
+- `services/nlp/`: normalizacion, skills, taxonomia y NER.
+- `services/jobs_import/`: Tecnoempleo, InfoJobs, importacion y upsert.
+- `services/embeddings/`: generacion y similitud vectorial.
+- `services/matching/`: reglas y score hibrido.
+
+Las tareas de busqueda se ejecutan con `BackgroundTasks` y persisten su estado en
+`job_search_tasks`.
+
+## Flujo De Autenticacion
+
+1. El registro crea un usuario `pending`.
+2. Se crea un token aleatorio, se persiste su hash y se registra `email_outbox`.
+3. En desarrollo, `ConsoleEmailService` escribe el enlace en logs.
+4. Login crea una sesion opaca y una cookie HttpOnly.
+5. La verificacion bloquea la fila del token, valida uso/caducidad y activa al usuario.
+6. Backend y frontend impiden que un usuario pendiente use CV, ofertas o feedback.
+
+## Flujo De CV
+
+1. Se valida extension y tamano.
+2. El archivo se guarda fuera del repositorio.
+3. Se desactiva el CV anterior.
+4. PyMuPDF/python-docx extrae el texto.
+5. Se normaliza el contenido.
+6. Se detectan skills y evidencias.
+7. Se crea `professional_profiles` y su embedding.
+
+## Flujo De Ofertas
+
+1. El perfil genera terminos de busqueda.
+2. Tecnoempleo se consulta por defecto.
+3. InfoJobs se consulta si existen credenciales.
+4. Las ofertas se normalizan y actualizan por `(source, external_id)`.
+5. Se generan embeddings cuando son necesarios.
+6. Se calculan y persisten resultados para el CV activo.
+
+## Matching
+
+```text
+rules_score = skills coincidentes / skills detectadas en la oferta
+semantic_score = similitud coseno entre embeddings
+final_score = 0.65 * rules_score + 0.35 * semantic_score
+```
+
+La explicacion almacena coincidencias, ausencias, senales positivas, penalizaciones y
+desglose de pesos. La version del algoritmo evita mezclar resultados incompatibles.
+
+## Persistencia
+
+- PostgreSQL es la fuente de verdad.
+- pgvector almacena embeddings de perfil y oferta.
+- Alembic versiona el esquema.
+- El filesystem local almacena CVs; la base solo conserva metadatos y ruta interna.
+- Los CV, secretos, logs y bases locales se excluyen mediante `.gitignore`.
+
+## Limites Actuales
+
+- `BackgroundTasks` no sustituye una cola distribuida.
+- `ConsoleEmailService` no entrega correo real.
+- Tecnoempleo depende de la estructura HTML del portal.
+- No existe aun recuperacion de contrasena.
+- No hay aprendizaje supervisado ni evaluacion offline etiquetada.

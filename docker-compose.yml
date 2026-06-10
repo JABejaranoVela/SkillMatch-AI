@@ -20,6 +20,7 @@ services:
       DATABASE_URL: postgresql+psycopg://skillmatch:skillmatch@db:5432/skillmatch
       BACKEND_CORS_ORIGINS: '["http://localhost:4200"]'
       ENVIRONMENT: ${ENVIRONMENT:-development}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
       SESSION_DAYS: ${SESSION_DAYS:-30}
       SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-skillmatch_session}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
@@ -28,7 +29,17 @@ services:
       EMAIL_PROVIDER: ${EMAIL_PROVIDER:-console}
       EMAIL_FROM: ${EMAIL_FROM:-SkillMatch AI <noreply@example.com>}
       BREVO_API_KEY: ${BREVO_API_KEY:-}
-      SKILL_NER_ENABLED: "true"
+      MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-10}
+      EMBEDDINGS_ENABLED: ${EMBEDDINGS_ENABLED:-true}
+      EMBEDDINGS_MODEL_NAME: ${EMBEDDINGS_MODEL_NAME:-sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2}
+      SKILL_NER_ENABLED: ${SKILL_NER_ENABLED:-false}
+      SKILL_NER_MODEL_NAME: ${SKILL_NER_MODEL_NAME:-urchade/gliner_medium-v2.1}
+      TECNOEMPLEO_BASE_URL: ${TECNOEMPLEO_BASE_URL:-https://www.tecnoempleo.com}
+      INFOJOBS_API_URL: ${INFOJOBS_API_URL:-https://api.infojobs.net/api/1/offer}
+      INFOJOBS_CLIENT_ID: ${INFOJOBS_CLIENT_ID:-}
+      INFOJOBS_CLIENT_SECRET: ${INFOJOBS_CLIENT_SECRET:-}
+      PROFILE_JOB_IMPORT_LIMIT: ${PROFILE_JOB_IMPORT_LIMIT:-12}
+      RECOMMENDATIONS_LIMIT: ${RECOMMENDATIONS_LIMIT:-50}
     ports:
       - "8000:8000"
     volumes:

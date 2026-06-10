@@ -1,38 +1,84 @@
-# API Inicial
+# API
 
-## Auth
+Prefijo: `/api/v1`
 
-- `POST /api/v1/auth/register`
-- `POST /api/v1/auth/login`
-- `GET /api/v1/auth/me`
+La especificacion ejecutable esta disponible en `/docs` y `/api/v1/openapi.json`.
 
-## CVs
+## Autenticacion
 
-- `POST /api/v1/resumes/upload`
-- `GET /api/v1/resumes`
-- `GET /api/v1/resumes/{resume_id}`
-- `POST /api/v1/resumes/{resume_id}/process`
-- `GET /api/v1/resumes/{resume_id}/profile`
+| Metodo | Ruta | Acceso | Descripcion |
+|---|---|---|---|
+| POST | `/auth/register` | Publico | Registro generico; crea usuario pendiente si procede |
+| POST | `/auth/verify-email` | Publico | Consume token de verificacion |
+| POST | `/auth/resend-verification` | Pending | Reenvia con cooldown de 60 segundos |
+| POST | `/auth/login` | Publico | Crea sesion y cookie HttpOnly |
+| POST | `/auth/logout` | Publico/sesion | Revoca la sesion y elimina cookie |
+| GET | `/auth/session` | Autenticado | Restaura usuario desde cookie |
+| GET | `/auth/me` | Autenticado | Devuelve la cuenta actual |
+| PATCH | `/auth/me` | Autenticado | Actualiza el nombre |
+| POST | `/auth/change-password` | Autenticado | Cambia la contrasena actual |
+
+`POST /auth/register` devuelve `202` y un mensaje generico tanto si el correo ya
+existe como si el registro se acepta.
+
+## CV
+
+Todos requieren usuario activo y correo verificado.
+
+| Metodo | Ruta | Descripcion |
+|---|---|---|
+| POST | `/resumes/upload` | Sube PDF/DOCX y lo marca como CV activo |
+| GET | `/resumes` | Lista el CV activo del usuario |
+| GET | `/resumes/active` | Obtiene el CV activo |
+| GET | `/resumes/active/profile` | Obtiene su perfil profesional |
+| GET | `/resumes/{resume_id}` | Obtiene un CV propio |
+| GET | `/resumes/{resume_id}/profile` | Obtiene el perfil de un CV propio |
+| POST | `/resumes/{resume_id}/process` | Procesa o reprocesa el CV |
 
 ## Ofertas
 
-- `GET /api/v1/jobs`
-- `GET /api/v1/jobs/{job_id}`
-- `POST /api/v1/jobs`
-- `PUT /api/v1/jobs/{job_id}`
-- `DELETE /api/v1/jobs/{job_id}`
-- `POST /api/v1/jobs/import`
-- `POST /api/v1/jobs/sync/external-api?search=python&limit=25`
-- `POST /api/v1/jobs/sync/profile`
-- `GET /api/v1/jobs/recommended`
+Todos requieren usuario activo y correo verificado.
 
-## Matching
+| Metodo | Ruta | Descripcion |
+|---|---|---|
+| GET | `/jobs` | Lista ofertas recomendables importadas |
+| POST | `/jobs` | Crea una oferta tecnica/manual |
+| POST | `/jobs/import` | Importa un archivo CSV o JSON |
+| POST | `/jobs/search/profile` | Inicia busqueda asincrona para el perfil |
+| GET | `/jobs/search/{task_id}` | Consulta el estado de la busqueda |
+| GET | `/jobs/recommended` | Ranking paginado del CV activo |
+| GET | `/jobs/{job_id}` | Detalle de una oferta recomendable |
 
-- `POST /api/v1/matching/resumes/{resume_id}`
-- `GET /api/v1/matching/resumes/{resume_id}/results`
-- `GET /api/v1/matching/results/{match_id}`
+Parametros de `/jobs/recommended`:
+
+- `limit`: 1-50, por defecto 20.
+- `offset`: desplazamiento, por defecto 0.
+
+Respuesta: `items`, `total`, `limit`, `offset` y `has_more`.
 
 ## Feedback
 
-- `POST /api/v1/feedback`
-- `GET /api/v1/feedback/me`
+Todos requieren usuario activo y correo verificado.
+
+| Metodo | Ruta | Descripcion |
+|---|---|---|
+| POST | `/feedback` | Registra `viewed`, `saved`, `discarded` o `applied` |
+| GET | `/feedback/me` | Lista interacciones del usuario |
+| GET | `/feedback/me/jobs` | Lista ofertas guardadas/postuladas con score |
+
+`/feedback/me/jobs` acepta `interaction_type` para filtrar.
+
+## Salud
+
+| Metodo | Ruta | Acceso | Descripcion |
+|---|---|---|---|
+| GET | `/health` | Publico | Estado basico del backend |
+
+## Codigos Relevantes
+
+- `202`: registro aceptado o busqueda iniciada.
+- `401`: sesion ausente o invalida.
+- `403`: cuenta deshabilitada o correo sin verificar.
+- `409`: conflicto de estado o token ya usado.
+- `410`: token de verificacion caducado.
+- `429`: cooldown de reenvio; incluye `Retry-After`.
