@@ -37,7 +37,7 @@ describe('ResetPasswordComponent', () => {
     const fixture = await createComponent(null);
 
     expect(fixture.componentInstance.state).toBe('invalid');
-    expect(fixture.componentInstance.message).toContain('no es valido');
+    expect(fixture.componentInstance.message).toContain('no es válido');
   });
 
   it('rejects a mismatched confirmation', async () => {
@@ -69,6 +69,8 @@ describe('ResetPasswordComponent', () => {
     fixture.detectChanges();
 
     expect(component.state).toBe('success');
-    expect(fixture.nativeElement.querySelector('a')?.getAttribute('href')).toBe('/login');
+    expect(
+      fixture.nativeElement.querySelector('.primary-action')?.getAttribute('href')
+    ).toBe('/login');
   });
 });

@@ -17,45 +17,94 @@
           </div>
         </div>
 
-        <label>
+        <label for="current-password">
           <span>Contraseña actual</span>
-          <input
-            type="password"
-            formControlName="currentPassword"
-            autocomplete="current-password"
-          >
+          <span class="password-input">
+            <input
+              id="current-password"
+              [type]="showCurrentPassword ? 'text' : 'password'"
+              formControlName="currentPassword"
+              autocomplete="current-password"
+              [attr.aria-invalid]="form.controls.currentPassword.touched && form.controls.currentPassword.invalid"
+              aria-describedby="current-password-error"
+            >
+            <button
+              type="button"
+              class="password-toggle"
+              [attr.aria-label]="showCurrentPassword ? 'Ocultar contraseña actual' : 'Mostrar contraseña actual'"
+              (click)="showCurrentPassword = !showCurrentPassword"
+            >
+              {{ showCurrentPassword ? 'Ocultar' : 'Mostrar' }}
+            </button>
+          </span>
           @if (form.controls.currentPassword.touched && form.controls.currentPassword.invalid) {
-            <small>Introduce tu contraseña actual.</small>
+            <small id="current-password-error">Introduce tu contraseña actual.</small>
           }
         </label>
 
-        <label>
+        <label for="new-password">
           <span>Nueva contraseña</span>
-          <input
-            type="password"
-            formControlName="newPassword"
-            autocomplete="new-password"
-          >
+          <span class="password-input">
+            <input
+              id="new-password"
+              [type]="showNewPassword ? 'text' : 'password'"
+              formControlName="newPassword"
+              autocomplete="new-password"
+              minlength="10"
+              maxlength="128"
+              [attr.aria-invalid]="form.controls.newPassword.touched && form.controls.newPassword.invalid"
+              aria-describedby="new-password-error"
+            >
+            <button
+              type="button"
+              class="password-toggle"
+              [attr.aria-label]="showNewPassword ? 'Ocultar nueva contraseña' : 'Mostrar nueva contraseña'"
+              (click)="showNewPassword = !showNewPassword"
+            >
+              {{ showNewPassword ? 'Ocultar' : 'Mostrar' }}
+            </button>
+          </span>
           @if (form.controls.newPassword.touched && form.controls.newPassword.invalid) {
-            <small>La contraseña debe tener entre 10 y 128 caracteres.</small>
+            <small id="new-password-error">
+              La contraseña debe tener entre 10 y 128 caracteres.
+            </small>
           }
         </label>
 
-        <label>
+        <label for="confirm-password">
           <span>Confirmar nueva contraseña</span>
-          <input
-            type="password"
-            formControlName="confirmPassword"
-            autocomplete="new-password"
-          >
+          <span class="password-input">
+            <input
+              id="confirm-password"
+              [type]="showConfirmation ? 'text' : 'password'"
+              formControlName="confirmPassword"
+              autocomplete="new-password"
+              minlength="10"
+              maxlength="128"
+              [attr.aria-invalid]="form.controls.confirmPassword.touched && form.controls.confirmPassword.invalid"
+              aria-describedby="confirm-password-error"
+            >
+            <button
+              type="button"
+              class="password-toggle"
+              [attr.aria-label]="showConfirmation ? 'Ocultar confirmación' : 'Mostrar confirmación'"
+              (click)="showConfirmation = !showConfirmation"
+            >
+              {{ showConfirmation ? 'Ocultar' : 'Mostrar' }}
+            </button>
+          </span>
           @if (form.controls.confirmPassword.touched && form.controls.confirmPassword.hasError('mismatch')) {
-            <small>Las contraseñas no coinciden.</small>
+            <small id="confirm-password-error">Las contraseñas no coinciden.</small>
+          } @else if (form.controls.confirmPassword.touched && form.controls.confirmPassword.invalid) {
+            <small id="confirm-password-error">Confirma la nueva contraseña.</small>
           }
         </label>
 
         <div class="account-note">
           <svg lucideShieldCheck aria-hidden="true"></svg>
-          <span>Utiliza una contraseña diferente a la que empleas en otros servicios.</span>
+          <span>
+            Por seguridad, cerraremos las demás sesiones. Esta sesión seguirá abierta.
+          </span>
         </div>
 
         @if (statusMessage) {

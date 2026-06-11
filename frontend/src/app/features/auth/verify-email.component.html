@@ -1,6 +1,11 @@
 <section class="verification-page">
   <article class="verification-panel">
-    <span class="verification-icon" aria-hidden="true">
+    <span
+      class="verification-icon"
+      [class.warning]="state === 'expired' || state === 'used'"
+      [class.error]="state === 'invalid'"
+      aria-hidden="true"
+    >
       @switch (state) {
         @case ('verifying') {
           <svg class="spinner" lucideLoaderCircle></svg>
@@ -11,29 +16,44 @@
         @case ('expired') {
           <svg lucideCircleAlert></svg>
         }
+        @case ('used') {
+          <svg lucideCircleAlert></svg>
+        }
         @default {
           <svg lucideMailCheck></svg>
         }
       }
     </span>
-    <p class="eyebrow">Verificacion de correo</p>
+    <p class="eyebrow">Verificación de correo</p>
     <h1>
-      @if (state === 'verifying') {
-        Verificando tu correo
-      } @else if (state === 'valid') {
-        Correo verificado
-      } @else if (state === 'expired') {
-        Enlace caducado
-      } @else {
-        Enlace no valido
+      @switch (state) {
+        @case ('verifying') { Verificando tu correo }
+        @case ('valid') { Correo verificado }
+        @case ('expired') { Enlace caducado }
+        @case ('used') { Enlace ya utilizado }
+        @default { Enlace no válido }
       }
     </h1>
-    <p>{{ message }}</p>
+    <p role="status">{{ message }}</p>
 
     @if (state === 'valid') {
-      <a class="primary-action" routerLink="/resumes">Continuar a mi CV</a>
+      <div class="verification-actions">
+        <a class="primary-action" routerLink="/resumes">Ir a mi CV</a>
+      </div>
     } @else if (state !== 'verifying') {
-      <a class="primary-action" routerLink="/login">Ir a iniciar sesion</a>
+      <div class="verification-actions">
+        @if (user$ | async; as user) {
+          @if (user.status === 'pending' || !user.email_verified_at) {
+            <a class="primary-action" routerLink="/verify-email-sent">
+              Solicitar otro enlace
+            </a>
+          } @else {
+            <a class="primary-action" routerLink="/login">Ir a iniciar sesión</a>
+          }
+        } @else {
+          <a class="primary-action" routerLink="/login">Ir a iniciar sesión</a>
+        }
+      </div>
     }
   </article>
 </section>

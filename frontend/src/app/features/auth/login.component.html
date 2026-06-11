@@ -1,23 +1,55 @@
-<section class="auth-page">
-  <form [formGroup]="form" (ngSubmit)="submit()">
-    <h1>Acceso</h1>
+<main class="auth-page">
+  <div class="auth-shell">
+    <a class="auth-brand" routerLink="/">SkillMatch <strong>AI</strong></a>
+    <section class="auth-card" aria-labelledby="login-title">
+      <header class="auth-heading">
+        <h1 id="login-title">Inicia sesión</h1>
+        <p>Accede a tu CV y a tus ofertas recomendadas.</p>
+      </header>
 
-    <label>
-      Email
-      <input type="email" formControlName="email" autocomplete="email">
-    </label>
+      @if (accountMessage) {
+        <p class="auth-message warning" role="status">{{ accountMessage }}</p>
+      }
 
-    <label>
-      Password
-      <input type="password" formControlName="password" autocomplete="current-password">
-    </label>
+      <form class="auth-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <div class="form-field">
+          <label for="login-email">Email</label>
+          <input id="login-email" type="email" formControlName="email" autocomplete="email"
+            [attr.aria-invalid]="form.controls.email.touched && form.controls.email.invalid"
+            aria-describedby="login-email-error">
+          @if (form.controls.email.touched && form.controls.email.invalid) {
+            <p id="login-email-error" class="field-error">Introduce un email válido.</p>
+          }
+        </div>
 
-    <a routerLink="/forgot-password">¿Has olvidado tu contraseña?</a>
+        <div class="form-field">
+          <label for="login-password">Contraseña</label>
+          <div class="input-wrap">
+            <input id="login-password" [type]="showPassword ? 'text' : 'password'"
+              formControlName="password" autocomplete="current-password"
+              [attr.aria-invalid]="form.controls.password.touched && form.controls.password.invalid"
+              aria-describedby="login-password-error">
+            <button class="password-toggle" type="button"
+              [attr.aria-label]="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+              (click)="showPassword = !showPassword">
+              {{ showPassword ? 'Ocultar' : 'Mostrar' }}
+            </button>
+          </div>
+          @if (form.controls.password.touched && form.controls.password.invalid) {
+            <p id="login-password-error" class="field-error">Introduce tu contraseña.</p>
+          }
+        </div>
 
-    @if (errorMessage) {
-      <p class="error">{{ errorMessage }}</p>
-    }
+        <a class="inline-link" routerLink="/forgot-password">¿Has olvidado tu contraseña?</a>
+        @if (errorMessage) {
+          <p class="auth-message error" role="alert">{{ errorMessage }}</p>
+        }
+        <button class="primary-button" type="submit" [disabled]="isSubmitting">
+          {{ isSubmitting ? 'Entrando...' : 'Entrar' }}
+        </button>
+      </form>
 
-    <button type="submit">Entrar</button>
-  </form>
-</section>
+      <p class="auth-links">¿Todavía no tienes cuenta? <a routerLink="/register">Crear cuenta</a></p>
+    </section>
+  </div>
+</main>

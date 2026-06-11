@@ -9,7 +9,7 @@ import { AuthService } from './auth.service';
   standalone: true,
   imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './forgot-password.component.html',
-  styleUrl: './login.component.scss'
+  styleUrl: './auth-page.scss'
 })
 export class ForgotPasswordComponent {
   state: 'idle' | 'sending' | 'sent' | 'error' = 'idle';
@@ -39,7 +39,7 @@ export class ForgotPasswordComponent {
       },
       error: () => {
         this.state = 'error';
-        this.message = 'No se pudo procesar la solicitud. Intentalo de nuevo mas tarde.';
+        this.message = 'No se pudo procesar la solicitud. Inténtalo de nuevo más tarde.';
       }
     });
   }

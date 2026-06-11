@@ -133,6 +133,34 @@ input:focus {
   outline: 0;
 }
 
+.password-input {
+  display: block;
+  position: relative;
+}
+
+.password-input input {
+  padding-right: 82px;
+  width: 100%;
+}
+
+.password-toggle {
+  background: transparent;
+  border: 0;
+  color: var(--color-primary);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 7px;
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+input[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+
 .readonly-field {
   background: var(--color-surface-soft);
   color: var(--color-muted);
@@ -286,6 +314,10 @@ label .field-help {
   }
 
   .danger-button {
+    width: 100%;
+  }
+
+  .form-actions button {
     width: 100%;
   }
 }

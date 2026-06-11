@@ -1,3 +1,5 @@
+import { AsyncPipe } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import {
@@ -13,6 +15,7 @@ import { AuthService } from './auth.service';
   selector: 'app-verify-email',
   standalone: true,
   imports: [
+    AsyncPipe,
     RouterLink,
     LucideCircleAlert,
     LucideCircleCheck,
@@ -20,11 +23,12 @@ import { AuthService } from './auth.service';
     LucideMailCheck
   ],
   templateUrl: './verify-email.component.html',
-  styleUrl: './verify-email.component.scss'
+  styleUrl: './auth-page.scss'
 })
 export class VerifyEmailComponent implements OnInit {
-  state: 'verifying' | 'valid' | 'expired' | 'invalid' = 'verifying';
-  message = 'Estamos comprobando tu enlace de verificacion.';
+  readonly user$ = this.authService.user$;
+  state: 'verifying' | 'valid' | 'expired' | 'used' | 'invalid' = 'verifying';
+  message = 'Estamos comprobando tu enlace de verificación.';
 
   constructor(
     private readonly authService: AuthService,
@@ -35,24 +39,29 @@ export class VerifyEmailComponent implements OnInit {
     const token = this.route.snapshot.queryParamMap.get('token');
     if (!token) {
       this.state = 'invalid';
-      this.message = 'El enlace de verificacion no contiene un token valido.';
+      this.message = 'El enlace no contiene la información necesaria para verificar tu correo.';
       return;
     }
 
     this.authService.verifyEmail(token).subscribe({
       next: (response) => {
         this.state = 'valid';
-        this.message = response.message;
+        this.message = response.message || 'Tu correo se ha verificado correctamente.';
       },
-      error: (error) => {
-        const detail = String(error?.error?.detail || '');
-        if (error?.status === 410) {
+      error: (error: HttpErrorResponse) => {
+        if (error.status === 410) {
           this.state = 'expired';
-          this.message = 'Este enlace ha caducado. Inicia sesion para solicitar otro.';
+          this.message = 'Este enlace ha caducado. Puedes solicitar uno nuevo.';
           return;
         }
+        if (error.status === 409) {
+          this.state = 'used';
+          this.message = 'Este enlace ya se ha utilizado. Inicia sesión para continuar.';
+          return;
+        }
+
         this.state = 'invalid';
-        this.message = detail || 'El enlace no es valido o ya ha sido utilizado.';
+        this.message = 'El enlace no es válido. Comprueba que lo has abierto completo.';
       }
     });
   }

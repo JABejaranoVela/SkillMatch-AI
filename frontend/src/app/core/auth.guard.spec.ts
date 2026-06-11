@@ -25,13 +25,19 @@ function user(
   };
 }
 
-async function runGuard(authUser: AuthUser | null): Promise<boolean | UrlTree> {
+async function runGuard(
+  authUser: AuthUser | null,
+  accountStateReason: 'disabled' | null = null
+): Promise<boolean | UrlTree> {
   TestBed.configureTestingModule({
     providers: [
       provideRouter([]),
       {
         provide: AuthService,
-        useValue: { waitForUser: () => of(authUser) }
+        useValue: {
+          waitForUser: () => of(authUser),
+          currentAccountStateReason: accountStateReason
+        }
       }
     ]
   });
@@ -64,5 +70,19 @@ describe('verifiedGuard', () => {
     const router = TestBed.inject(Router);
 
     expect(router.serializeUrl(result as UrlTree)).toBe('/login?returnUrl=%2Fjobs');
+  });
+
+  it('redirects disabled users to login with a specific reason', async () => {
+    const result = await runGuard(user('disabled', '2026-06-10T12:00:00Z'));
+    const router = TestBed.inject(Router);
+
+    expect(router.serializeUrl(result as UrlTree)).toBe('/login?reason=disabled');
+  });
+
+  it('preserves the disabled reason when session restoration returns no user', async () => {
+    const result = await runGuard(null, 'disabled');
+    const router = TestBed.inject(Router);
+
+    expect(router.serializeUrl(result as UrlTree)).toBe('/login?reason=disabled');
   });
 });

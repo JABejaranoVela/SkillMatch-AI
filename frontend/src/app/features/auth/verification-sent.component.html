@@ -3,51 +3,64 @@
     <span class="verification-icon" aria-hidden="true">
       <svg lucideMailCheck></svg>
     </span>
-    <p class="eyebrow">Correo de verificacion enviado</p>
-    <h1>Revisa tu bandeja de entrada</h1>
+    <p class="eyebrow">Activación de cuenta</p>
+    <h1>Verifica tu correo</h1>
 
     @if (user$ | async; as user) {
       @if (user.status === 'pending' || !user.email_verified_at) {
         <p>
-          Hemos enviado un enlace a <strong>{{ user.email }}</strong>. Debes verificar
-          el correo antes de acceder a tu CV y a las ofertas.
+          Te hemos enviado un enlace a <strong>{{ user.email }}</strong>. Ábrelo para
+          activar tu cuenta y acceder a tu CV y a las ofertas.
         </p>
-      }
-    } @else {
-      <p>
-        Si el registro es valido, recibiras un enlace de verificacion. Inicia sesion
-        para reenviarlo si fuera necesario.
-      </p>
-    }
 
-    @if (message) {
-      <p class="notice" [class.notice-error]="state === 'error' || state === 'cooldown'">
-        {{ message }}
-      </p>
-    }
+        @if (message) {
+          <p
+            class="notice"
+            [class.notice-success]="state === 'sent'"
+            [class.notice-warning]="cooldownSeconds > 0 && state !== 'sent'"
+            [class.notice-error]="state === 'error'"
+            [attr.role]="state === 'error' ? 'alert' : 'status'"
+          >
+            {{ message }}
+          </p>
+        }
 
-    <div class="verification-actions">
-      @if (user$ | async; as user) {
-        @if (user.status === 'pending' || !user.email_verified_at) {
-          <button type="button" [disabled]="state === 'sending'" (click)="resend()">
+        <div class="verification-actions">
+          <button
+            class="primary-button"
+            type="button"
+            [disabled]="state === 'sending' || cooldownSeconds > 0"
+            (click)="resend()"
+          >
             @if (state === 'sending') {
               <svg class="spinner" lucideLoaderCircle aria-hidden="true"></svg>
-              Enviando
+              Enviando...
+            } @else if (cooldownSeconds > 0) {
+              Reenviar en {{ cooldownSeconds }} s
             } @else {
               <svg lucideRefreshCw aria-hidden="true"></svg>
               Reenviar correo
             }
           </button>
-          <button class="secondary-action" type="button" (click)="logout()">
+          <button class="secondary-button" type="button" (click)="logout()">
             <svg lucideLogOut aria-hidden="true"></svg>
-            Cerrar sesion
+            Cerrar sesión
           </button>
-        } @else {
-          <a class="primary-action" routerLink="/resumes">Continuar a mi CV</a>
-        }
+        </div>
       } @else {
-        <a class="primary-action" routerLink="/login">Iniciar sesion</a>
+        <p>Tu correo ya está verificado. Puedes continuar usando SkillMatch AI.</p>
+        <div class="verification-actions">
+          <a class="primary-action" routerLink="/resumes">Ir a mi CV</a>
+        </div>
       }
-    </div>
+    } @else {
+      <p>
+        Si el registro se ha completado, recibirás un enlace para activar tu cuenta.
+        Revisa también la carpeta de correo no deseado.
+      </p>
+      <div class="verification-actions">
+        <a class="primary-action" routerLink="/login">Ir a iniciar sesión</a>
+      </div>
+    }
   </article>
 </section>

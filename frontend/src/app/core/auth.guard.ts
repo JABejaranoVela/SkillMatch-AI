@@ -17,8 +17,18 @@ export const verifiedGuard: CanActivateFn = (_route, state) => {
       if (isVerifiedUser(user)) {
         return true;
       }
+      if (authService.currentAccountStateReason === 'disabled') {
+        return router.createUrlTree(['/login'], {
+          queryParams: { reason: 'disabled' }
+        });
+      }
       if (user?.status === 'pending') {
         return router.createUrlTree(['/verify-email-sent']);
+      }
+      if (user?.status === 'disabled') {
+        return router.createUrlTree(['/login'], {
+          queryParams: { reason: 'disabled' }
+        });
       }
       return router.createUrlTree(['/login'], {
         queryParams: { returnUrl: state.url }
@@ -38,6 +48,11 @@ export const sessionGuard: CanActivateFn = (_route, state) => {
       if (isAuthenticated) {
         return true;
       }
+      if (authService.currentAccountStateReason === 'disabled') {
+        return router.createUrlTree(['/login'], {
+          queryParams: { reason: 'disabled' }
+        });
+      }
       return router.createUrlTree(['/login'], {
         queryParams: { returnUrl: state.url }
       });
@@ -45,12 +60,17 @@ export const sessionGuard: CanActivateFn = (_route, state) => {
   );
 };
 
-export const pendingGuard: CanActivateFn = (_route, state) => {
+export const pendingGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
   return authService.waitForUser().pipe(
     map((user) => {
+      if (authService.currentAccountStateReason === 'disabled') {
+        return router.createUrlTree(['/login'], {
+          queryParams: { reason: 'disabled' }
+        });
+      }
       if (user === null) {
         return true;
       }
@@ -61,7 +81,7 @@ export const pendingGuard: CanActivateFn = (_route, state) => {
         return router.createUrlTree(['/resumes']);
       }
       return router.createUrlTree(['/login'], {
-        queryParams: { returnUrl: state.url }
+        queryParams: { reason: 'disabled' }
       });
     })
   );

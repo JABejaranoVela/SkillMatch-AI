@@ -21,6 +21,9 @@ export class SettingsComponent {
   isSaving = false;
   statusMessage = '';
   errorMessage = '';
+  showCurrentPassword = false;
+  showNewPassword = false;
+  showConfirmation = false;
 
   readonly form = this.formBuilder.nonNullable.group({
     currentPassword: ['', [Validators.required]],
@@ -37,7 +40,18 @@ export class SettingsComponent {
   constructor(
     private readonly formBuilder: FormBuilder,
     private readonly authService: AuthService
-  ) {}
+  ) {
+    this.form.controls.confirmPassword.valueChanges.subscribe(() => {
+      const errors = this.form.controls.confirmPassword.errors;
+      if (!errors?.['mismatch']) {
+        return;
+      }
+      const { mismatch: _mismatch, ...remainingErrors } = errors;
+      this.form.controls.confirmPassword.setErrors(
+        Object.keys(remainingErrors).length ? remainingErrors : null
+      );
+    });
+  }
 
   submit(): void {
     if (this.form.invalid) {

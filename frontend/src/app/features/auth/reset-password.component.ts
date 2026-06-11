@@ -9,7 +9,7 @@ import { AuthService } from './auth.service';
   standalone: true,
   imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './reset-password.component.html',
-  styleUrl: './login.component.scss'
+  styleUrl: './auth-page.scss'
 })
 export class ResetPasswordComponent implements OnInit {
   state: 'ready' | 'sending' | 'success' | 'invalid' | 'expired' | 'used' = 'ready';
@@ -33,13 +33,24 @@ export class ResetPasswordComponent implements OnInit {
     private readonly formBuilder: FormBuilder,
     private readonly authService: AuthService,
     private readonly route: ActivatedRoute
-  ) {}
+  ) {
+    this.form.controls.confirmPassword.valueChanges.subscribe(() => {
+      const errors = this.form.controls.confirmPassword.errors;
+      if (!errors?.['mismatch']) {
+        return;
+      }
+      const { mismatch: _mismatch, ...remainingErrors } = errors;
+      this.form.controls.confirmPassword.setErrors(
+        Object.keys(remainingErrors).length ? remainingErrors : null
+      );
+    });
+  }
 
   ngOnInit(): void {
     this.token = this.route.snapshot.queryParamMap.get('token') || '';
     if (!this.token) {
       this.state = 'invalid';
-      this.message = 'El enlace no es valido o ha caducado.';
+      this.message = 'El enlace no es válido o ha caducado.';
     }
   }
 
@@ -75,7 +86,7 @@ export class ResetPasswordComponent implements OnInit {
         } else {
           this.state = 'invalid';
         }
-        this.message = 'El enlace no es valido o ha caducado.';
+        this.message = 'El enlace no es válido o ha caducado.';
       }
     });
   }

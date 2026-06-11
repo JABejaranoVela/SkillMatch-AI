@@ -1,4 +1,4 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Router } from '@angular/router';
 import {
@@ -29,11 +29,34 @@ export interface AuthMessage {
   message: string;
 }
 
+interface AccountStateEventDetail {
+  reason: 'expired' | 'disabled';
+  returnUrl?: string;
+}
+
+export function sanitizeReturnUrl(value: string | null | undefined): string {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) {
+    return '/resumes';
+  }
+
+  try {
+    const baseUrl = 'https://skillmatch.local';
+    const parsed = new URL(value, baseUrl);
+    if (parsed.origin !== baseUrl || parsed.pathname === '/login') {
+      return '/resumes';
+    }
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return '/resumes';
+  }
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly authenticatedSubject = new BehaviorSubject<boolean>(false);
   private readonly userSubject = new BehaviorSubject<AuthUser | null>(null);
   private readonly sessionRestoredSubject = new BehaviorSubject<boolean>(false);
+  private accountStateReason: AccountStateEventDetail['reason'] | null = null;
 
   readonly authenticated$ = this.authenticatedSubject.asObservable();
   readonly user$ = this.userSubject.asObservable();
@@ -43,15 +66,35 @@ export class AuthService {
     private readonly api: ApiService,
     private readonly router: Router
   ) {
-    window.addEventListener('skillmatch:unauthorized', () => {
+    window.addEventListener('skillmatch:account-state', (event) => {
+      const detail = (event as CustomEvent<AccountStateEventDetail>).detail;
       this.clearSession();
-      void this.router.navigateByUrl('/login');
+      if (!detail || this.router.url.startsWith('/login')) {
+        return;
+      }
+      this.accountStateReason = detail.reason;
+      void this.router.navigate(['/login'], {
+        queryParams: {
+          reason: detail.reason,
+          ...(detail.reason === 'expired'
+            ? { returnUrl: this.safeReturnUrl(detail.returnUrl) }
+            : {})
+        }
+      });
     });
     this.restoreSession().subscribe();
   }
 
   get isAuthenticated(): boolean {
     return this.authenticatedSubject.value;
+  }
+
+  get currentAccountStateReason(): AccountStateEventDetail['reason'] | null {
+    return this.accountStateReason;
+  }
+
+  safeReturnUrl(value: string | null | undefined): string {
+    return sanitizeReturnUrl(value);
   }
 
   waitForSession(): Observable<boolean> {
@@ -171,6 +214,7 @@ export class AuthService {
   logout(): void {
     this.http.post<void>(`${this.api.baseUrl}/auth/logout`, {}).pipe(
       finalize(() => {
+        this.accountStateReason = null;
         this.clearSession();
         void this.router.navigateByUrl('/login');
       })
@@ -181,8 +225,16 @@ export class AuthService {
     return this.http.get<AuthUser>(`${this.api.baseUrl}/auth/session`).pipe(
       tap((user) => this.setAuthenticatedUser(user)),
       map((user) => user),
-      catchError(() => {
+      catchError((error: HttpErrorResponse) => {
         this.clearSession();
+        if (error.status === 403) {
+          this.accountStateReason = 'disabled';
+          void this.router.navigate(['/login'], {
+            queryParams: { reason: 'disabled' }
+          });
+        } else {
+          this.accountStateReason = null;
+        }
         return of(null);
       }),
       finalize(() => this.sessionRestoredSubject.next(true))
@@ -190,6 +242,7 @@ export class AuthService {
   }
 
   private setAuthenticatedUser(user: AuthUser): void {
+    this.accountStateReason = null;
     this.userSubject.next(user);
     this.authenticatedSubject.next(true);
     this.sessionRestoredSubject.next(true);
