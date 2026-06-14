@@ -34,6 +34,9 @@ La aplicacion Angular contiene:
 `AuthService` restaura la sesion al arrancar. `verifiedGuard` exige usuario activo y
 correo verificado en las rutas privadas.
 
+El frontend no persiste tokens. Todas las solicitudes usan la cookie HttpOnly y las
+escrituras autenticadas envian el `Origin` del navegador.
+
 ## Backend
 
 FastAPI organiza la API en:
@@ -64,6 +67,10 @@ Las tareas de busqueda se ejecutan con `BackgroundTasks` y persisten su estado e
 6. Login crea una sesion opaca y una cookie HttpOnly.
 7. La verificacion bloquea la fila del token, valida uso/caducidad y activa al usuario.
 8. Backend y frontend impiden que un usuario pendiente use CV, ofertas o feedback.
+
+Un middleware rechaza `POST`, `PUT`, `PATCH` y `DELETE` con cookie de sesion si
+falta `Origin` o no coincide con `FRONTEND_URL`/CORS. Los flujos sensibles consumen
+buckets de rate limiting en PostgreSQL mediante una operacion atomica.
 
 El worker recupera filas `sending` abandonadas tras el umbral configurado. Cancela
 mensajes si el token fue usado, caduco, se invalido o ya no coincide con su hash.
@@ -105,6 +112,8 @@ desglose de pesos. La version del algoritmo evita mezclar resultados incompatibl
 - pgvector almacena embeddings de perfil y oferta.
 - Alembic versiona el esquema.
 - PostgreSQL actua tambien como cola de correo para el volumen actual.
+- PostgreSQL conserva buckets temporales de rate limiting; sus claves son HMAC y
+  no contienen emails ni IPs recuperables.
 - El filesystem local almacena CVs; la base solo conserva metadatos y ruta interna.
 - Los CV, secretos, logs y bases locales se excluyen mediante `.gitignore`.
 
@@ -115,5 +124,7 @@ desglose de pesos. La version del algoritmo evita mezclar resultados incompatibl
   commit puede provocar un duplicado.
 - La rotacion de `EMAIL_PAYLOAD_ENCRYPTION_KEY` requiere vaciar o migrar payloads
   pendientes.
+- `TRUST_PROXY_HEADERS` solo es seguro si el backend esta aislado detras de un proxy
+  que sobrescribe la cabecera.
 - Tecnoempleo depende de la estructura HTML del portal.
 - No hay aprendizaje supervisado ni evaluacion offline etiquetada.

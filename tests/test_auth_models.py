@@ -1,6 +1,7 @@
 from app.models.auth import (
     AccountToken,
     AccountTokenPurpose,
+    AuthRateLimitBucket,
     AuthSession,
     EmailOutbox,
     EmailOutboxStatus,
@@ -12,6 +13,7 @@ def test_auth_foundation_models_are_registered() -> None:
     assert AuthSession.__tablename__ == "auth_sessions"
     assert AccountToken.__tablename__ == "account_tokens"
     assert EmailOutbox.__tablename__ == "email_outbox"
+    assert AuthRateLimitBucket.__tablename__ == "auth_rate_limit_buckets"
     assert "encrypted_payload" in EmailOutbox.__table__.columns
     assert "last_error" in EmailOutbox.__table__.columns
     assert "last_attempt_at" in EmailOutbox.__table__.columns

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from enum import StrEnum
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Index, String, Text
+from sqlalchemy import DateTime, Enum, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -115,3 +115,24 @@ class EmailOutbox(Base):
     )
 
     account_token = relationship("AccountToken")
+
+
+class AuthRateLimitBucket(Base):
+    __tablename__ = "auth_rate_limit_buckets"
+    __table_args__ = (
+        Index("ix_auth_rate_limit_buckets_action", "action"),
+        Index("ix_auth_rate_limit_buckets_expires_at", "expires_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    key_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    action: Mapped[str] = mapped_column(String(50))
+    request_count: Mapped[int] = mapped_column(Integer, default=1)
+    window_started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
+    )

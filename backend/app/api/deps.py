@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.auth import AuthSession
-from app.models.user import User, UserStatus
+from app.models.user import User, UserRole, UserStatus
 from app.services.auth.sessions import (
     find_session,
     is_session_active,
@@ -49,6 +49,17 @@ def get_active_user(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Debes verificar tu correo para acceder a esta funcionalidad",
+        )
+    return current_user
+
+
+def get_admin_user(
+    current_user: Annotated[User, Depends(get_active_user)],
+) -> User:
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permisos para realizar esta operacion",
         )
     return current_user
 

@@ -20,7 +20,7 @@ class ConsoleEmailService:
 
     def send(self, message: EmailMessage) -> EmailSendResult:
         if self.environment == "production":
-            logger.info("EMAIL SENT TO CONSOLE | recipient=%s", message.recipient)
+            logger.info("EMAIL SENT TO CONSOLE")
         else:
             logger.warning(
                 "EMAIL SENT TO CONSOLE | recipient=%s | subject=%s | content=%s",

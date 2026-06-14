@@ -85,6 +85,12 @@ pero las reglas permiten explicar coincidencias concretas.
   consola en desarrollo o Brevo API en produccion.
 - El worker recupera entregas abandonadas, cancela tokens invalidados y reintenta a
   los 1, 5, 15, 60 y 240 minutos.
+- Las escrituras autenticadas validan `Origin` contra `FRONTEND_URL` y los origenes
+  CORS permitidos.
+- Login, registro, reenvio y recuperacion usan limites persistentes en PostgreSQL.
+  Las claves son HMAC-SHA256 y no guardan emails ni IPs en claro.
+- Un comando de mantenimiento elimina sesiones, tokens, correos finalizados y
+  buckets antiguos con retenciones configurables.
 
 ### Arquitectura
 
@@ -117,8 +123,8 @@ entorno local.
   atribucion y URL original, y trata InfoJobs como integracion opcional.
 - El feedback ya queda estructurado para una fase supervisada futura, pero aun no hay
   evidencia suficiente para afirmar mejora predictiva.
-- Antes de produccion faltan politica de borrado/retencion, observabilidad y
-  evaluacion con un conjunto de CV-oferta etiquetado.
+- Antes de una operacion a mayor escala faltan observabilidad, backups probados,
+  politica completa para CV/cuentas y evaluacion con pares CV-oferta etiquetados.
 
 ## Funcionalidades Actuales
 
@@ -171,16 +177,69 @@ En desarrollo, el enlace de verificacion aparece en:
 docker compose logs email-worker
 ```
 
-Para produccion, genere una clave Fernet propia, mantengala estable y configure:
+Migraciones y estado de servicios:
+
+```bash
+docker compose exec backend alembic upgrade head
+docker compose ps
+docker compose logs backend
+docker compose logs email-worker
+```
+
+El backend aplica las migraciones al arrancar. El comando explicito resulta util
+para despliegues controlados.
+
+## Configuracion De Produccion
+
+Para produccion, genere secretos propios y configure al menos:
 
 ```env
 ENVIRONMENT=production
+DATABASE_URL=postgresql+psycopg://usuario:password-fuerte@db:5432/skillmatch
+SECRET_KEY=un-secreto-aleatorio-de-al-menos-32-caracteres
+FRONTEND_URL=https://app.example.org
+BACKEND_CORS_ORIGINS=["https://app.example.org"]
+COOKIE_SECURE=true
+COOKIE_SAMESITE=lax
+TRUST_PROXY_HEADERS=false
 EMAIL_PROVIDER=brevo
 BREVO_API_KEY=...
+EMAIL_FROM=SkillMatch AI <noreply@example.org>
 EMAIL_PAYLOAD_ENCRYPTION_KEY=...
+EMAIL_MAX_ATTEMPTS=6
 PASSWORD_RESET_TTL_MINUTES=60
 PASSWORD_RESET_MAX_REQUESTS_PER_HOUR=5
 ```
+
+La aplicacion rechaza el arranque productivo con credenciales predeterminadas,
+HTTP/localhost en CORS, remitente `example.com`, cookie insegura o proveedor de
+correo distinto de Brevo. `TRUST_PROXY_HEADERS` solo debe activarse si FastAPI no
+es accesible directamente y el proxy controlado sobrescribe `X-Forwarded-For`.
+
+Variables operativas principales:
+
+| Variable | Uso |
+|---|---|
+| `ENVIRONMENT` | `development`, `test` o `production` |
+| `DATABASE_URL` | PostgreSQL; credenciales propias obligatorias en produccion |
+| `SECRET_KEY` | Firma HMAC de buckets; minimo 32 caracteres en produccion |
+| `FRONTEND_URL` | Origen canonico del frontend y base de enlaces |
+| `BACKEND_CORS_ORIGINS` | Lista JSON de origenes permitidos |
+| `SESSION_DAYS` | Duracion de la cookie y sesion opaca |
+| `COOKIE_SECURE` / `COOKIE_SAMESITE` | `true` y `lax` en produccion |
+| `EMAIL_PROVIDER` | `console` local, `fake` tests o `brevo` produccion |
+| `BREVO_API_KEY` / `EMAIL_FROM` | Credenciales y remitente verificado |
+| `EMAIL_PAYLOAD_ENCRYPTION_KEY` | Clave Fernet estable para el outbox |
+| `EMAIL_WORKER_POLL_SECONDS` | Espera del worker cuando no hay trabajo |
+| `EMAIL_WORKER_BATCH_SIZE` | Filas reclamadas por iteracion |
+| `EMAIL_WORKER_STALE_MINUTES` | Umbral para recuperar entregas abandonadas |
+| `EMAIL_MAX_ATTEMPTS` | Hasta 6: intento inicial y cinco reintentos |
+| `EMAIL_HTTP_TIMEOUT_SECONDS` | Timeout de la llamada a Brevo |
+| `CLEANUP_*_RETENTION_DAYS` | Retenciones de sesiones, tokens y outbox |
+
+Los limites se pueden ajustar con las variables `*_RATE_LIMIT_*` de
+`.env.example`. No existen `BACKEND_URL` ni `CSRF_SECRET`: la API usa rutas
+relativas y protege escrituras con cookie validando `Origin`.
 
 Puede generar la clave con:
 
@@ -190,6 +249,43 @@ docker compose run --rm backend python -c "from cryptography.fernet import Ferne
 
 No cambie la clave mientras haya correos pendientes: esos payloads dejarian de poder
 descifrarse. En produccion no se registran enlaces completos ni tokens.
+
+En Brevo debe verificar el dominio o remitente configurado en `EMAIL_FROM`. Publique
+los registros SPF y DKIM que muestre el panel de Brevo y espere a que aparezcan como
+validados antes de enviar correo real. DMARC es recomendable una vez comprobada la
+entrega.
+
+## Limites Y Limpieza
+
+Valores predeterminados:
+
+- login: 10 intentos por IP/email cada 15 minutos;
+- registro: 5 solicitudes por IP y hora;
+- reenvio: cooldown de 60 segundos y 5 solicitudes por usuario/hora;
+- recuperar contrasena: 5 por email y 20 por IP/hora;
+- restablecer: 10 por IP/hora;
+- cambiar contrasena: 5 por usuario/hora.
+
+Registro y recuperacion mantienen siempre su respuesta generica. Los demas limites
+devuelven `429` con `Retry-After`.
+
+Revise primero los contadores:
+
+```bash
+docker compose exec backend python -m app.commands.cleanup --dry-run
+```
+
+Ejecute la limpieza:
+
+```bash
+docker compose exec backend python -m app.commands.cleanup
+```
+
+Por defecto conserva 30 dias de sesiones inactivas, 7 dias de tokens usados o
+caducados y 30 dias de correos finalizados. Se puede sobrescribir con
+`--session-retention-days`, `--token-retention-days` y
+`--outbox-retention-days`. En produccion debe programarse periodicamente, por
+ejemplo una vez al dia desde el scheduler de la plataforma.
 
 InfoJobs es opcional. Para activarlo, configure
 `INFOJOBS_CLIENT_ID` y `INFOJOBS_CLIENT_SECRET` en `.env`.
@@ -208,8 +304,8 @@ npm run build
 
 Estado validado el 11 de junio de 2026:
 
-- 92 pruebas backend superadas.
-- 11 pruebas Angular superadas.
+- 117 pruebas backend superadas.
+- 23 pruebas Angular superadas en la Fase 6.
 - Build Angular y lint backend correctos.
 
 ## Estructura

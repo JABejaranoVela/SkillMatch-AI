@@ -1,19 +1,284 @@
-<section class="dashboard">
-  <div>
-    <p class="eyebrow">MVP</p>
-    <h1>Recomendacion laboral explicable para perfiles tecnicos</h1>
-    <p>
-      Analiza curriculums, normaliza habilidades y genera rankings de ofertas con motivos claros
-      de compatibilidad.
-    </p>
-  </div>
-  <div class="status-panel">
-    <h2>Fases activas</h2>
-    <ol>
-      <li>Backend base y datos</li>
-      <li>Frontend base</li>
-      <li>Procesamiento de CV</li>
-    </ol>
+<section class="dashboard" aria-labelledby="dashboard-title">
+  <header class="welcome">
+    @if (user$ | async; as user) {
+      <h1 id="dashboard-title">Hola, {{ displayName(user) }} <span aria-hidden="true">👋</span></h1>
+    } @else {
+      <h1 id="dashboard-title">Hola</h1>
+    }
+    <p>Este es el estado de tu perfil profesional y tus recomendaciones.</p>
+  </header>
+
+  <section class="next-step-card" aria-labelledby="next-step-title">
+    <span class="next-step-icon" aria-hidden="true">
+      @if (!activeResume) {
+        <svg lucideCloudUpload></svg>
+      } @else {
+        <svg lucideFileText></svg>
+      }
+    </span>
+
+    <div class="next-step-copy">
+      <span class="section-label">Siguiente paso</span>
+      @if (isResumeLoading) {
+        <h2 id="next-step-title">Consultando el estado de tu CV...</h2>
+        <p>Estamos preparando tu siguiente recomendación.</p>
+      } @else if (resumeUnavailable) {
+        <h2 id="next-step-title">No pudimos consultar tu CV</h2>
+        <p>Puedes acceder a Mi CV para revisar su estado o intentarlo de nuevo más tarde.</p>
+      } @else {
+        <h2 id="next-step-title">{{ nextStep.title }}</h2>
+        <p>{{ nextStep.description }}</p>
+      }
+    </div>
+
+    <div class="next-step-actions">
+      <a class="button button-primary" [routerLink]="resumeUnavailable ? '/cv' : nextStep.route">
+        @if (!activeResume) {
+          <svg lucideCloudUpload aria-hidden="true"></svg>
+        } @else if (isResumeProcessed) {
+          <svg lucideSearch aria-hidden="true"></svg>
+        } @else {
+          <svg lucideFileText aria-hidden="true"></svg>
+        }
+        {{ resumeUnavailable ? 'Ver mi CV' : nextStep.actionLabel }}
+      </a>
+      @if (hasSelectedOffers) {
+        <a class="button button-secondary" routerLink="/my-jobs">
+          <svg lucideBookmark aria-hidden="true"></svg>
+          Ver mis ofertas
+        </a>
+      }
+    </div>
+  </section>
+
+  <section class="summary-grid" aria-label="Resumen de tu perfil profesional">
+    <article class="summary-card">
+      <h2>CV activo</h2>
+      <div class="summary-content">
+        <span class="summary-icon" aria-hidden="true"><svg lucideFileText></svg></span>
+        <div class="summary-main">
+          @if (isResumeLoading) {
+            <strong>Cargando...</strong>
+          } @else if (resumeUnavailable) {
+            <strong>Dato no disponible</strong>
+          } @else {
+            <strong class="truncate">{{ activeResume?.filename || 'Sin CV' }}</strong>
+            <span
+              class="status-chip"
+              [class]="resumeStatusClass(activeResume?.status)"
+            >
+              {{ resumeStatusLabel(activeResume?.status) }}
+            </span>
+          }
+        </div>
+      </div>
+      <p>{{ resumeUnavailable ? 'Revisa esta sección más tarde' : resumeUpdatedLabel() }}</p>
+    </article>
+
+    <article class="summary-card">
+      <h2>Perfil detectado</h2>
+      <div class="summary-content">
+        <span class="summary-icon" aria-hidden="true"><svg lucideUserRound></svg></span>
+        <div class="summary-main">
+          @if (isProfileLoading) {
+            <strong>Cargando...</strong>
+          } @else if (profileUnavailable) {
+            <strong>Dato no disponible</strong>
+          } @else {
+            <strong>{{ profileName }}</strong>
+          }
+        </div>
+      </div>
+      <a class="card-link" routerLink="/profile">
+        Ver perfil <svg lucideArrowRight aria-hidden="true"></svg>
+      </a>
+    </article>
+
+    <article class="summary-card">
+      <h2>Ofertas compatibles</h2>
+      <div class="summary-content">
+        <span class="summary-icon" aria-hidden="true"><svg lucideBarChart3></svg></span>
+        <div class="metric">
+          @if (isRecommendationsLoading) {
+            <strong>...</strong>
+          } @else if (recommendationsUnavailable) {
+            <strong aria-label="Dato no disponible">—</strong>
+            <span>dato no disponible</span>
+          } @else {
+            <strong>{{ totalRecommendations }}</strong>
+            <span>
+              {{ totalRecommendations === 0 ? 'sin búsqueda todavía' : 'ofertas encontradas' }}
+            </span>
+          }
+        </div>
+      </div>
+      <p>Según tu perfil y habilidades</p>
+    </article>
+
+    <article class="summary-card">
+      <h2>Mis ofertas</h2>
+      <div class="summary-content">
+        <span class="summary-icon" aria-hidden="true"><svg lucideBookmark></svg></span>
+        @if (isSelectedOffersLoading) {
+          <div class="metric"><strong>...</strong><span>Cargando</span></div>
+        } @else if (selectedOffersUnavailable) {
+          <div class="metric"><strong aria-label="Dato no disponible">—</strong><span>dato no disponible</span></div>
+        } @else {
+          <div class="split-metrics">
+            <div class="metric">
+              <strong>{{ savedCount }}</strong>
+              <span>guardadas</span>
+            </div>
+            <div class="metric">
+              <strong>{{ appliedCount }}</strong>
+              <span>{{ appliedCount === 1 ? 'postulada' : 'postuladas' }}</span>
+            </div>
+          </div>
+        }
+      </div>
+      <a class="card-link" routerLink="/my-jobs">
+        Ver mis ofertas <svg lucideArrowRight aria-hidden="true"></svg>
+      </a>
+    </article>
+  </section>
+
+  <div class="dashboard-columns">
+    <section class="panel recommendations-panel" aria-labelledby="recommendations-title">
+      <header class="panel-header">
+        <h2 id="recommendations-title">Últimas ofertas recomendadas</h2>
+        <a routerLink="/jobs">Ver todas <svg lucideArrowRight aria-hidden="true"></svg></a>
+      </header>
+
+      @if (isRecommendationsLoading) {
+        <div class="empty-state compact">
+          <span class="empty-icon" aria-hidden="true"><svg lucideSearch></svg></span>
+          <p>Cargando recomendaciones...</p>
+        </div>
+      } @else if (recommendationsUnavailable) {
+        <div class="empty-state">
+          <span class="empty-icon warning" aria-hidden="true"><svg lucideBriefcaseBusiness></svg></span>
+          <h3>Recomendaciones no disponibles</h3>
+          <p>No hemos podido consultar esta sección. El resto de tu panel sigue disponible.</p>
+        </div>
+      } @else if (recommendations.length === 0) {
+        <div class="empty-state">
+          <span class="empty-icon" aria-hidden="true"><svg lucideSearch></svg></span>
+          <h3>Aún no hay recomendaciones</h3>
+          <p>Busca ofertas compatibles para ver recomendaciones aquí.</p>
+          <a class="button button-secondary inline-button" routerLink="/jobs">Buscar ofertas</a>
+        </div>
+      } @else {
+        <div class="offer-list">
+          @for (recommendation of recommendations; track recommendation.job.id) {
+            <article class="offer-row">
+              <span class="company-mark" aria-hidden="true">
+                {{ companyInitials(recommendation.job.company) }}
+              </span>
+              <div class="offer-copy">
+                <h3>{{ recommendation.job.title }}</h3>
+                <p>{{ recommendation.job.company || 'Empresa no indicada' }}</p>
+                <div class="offer-meta">
+                  <span><svg lucideMapPin aria-hidden="true"></svg>{{ recommendation.job.location || 'Ubicación no indicada' }}</span>
+                  <span><svg lucideMonitor aria-hidden="true"></svg>{{ recommendation.job.modality || 'Modalidad no indicada' }}</span>
+                </div>
+              </div>
+              <div class="compatibility">
+                <strong>{{ compatibilityScore(recommendation) }}%</strong>
+                <span>Compatibilidad</span>
+              </div>
+              <button
+                class="button button-secondary offer-button"
+                type="button"
+                [disabled]="!recommendation.job.url"
+                [attr.aria-label]="'Abrir oferta externa: ' + recommendation.job.title"
+                (click)="openOffer(recommendation)"
+              >
+                Ver oferta
+                <svg lucideExternalLink aria-hidden="true"></svg>
+              </button>
+            </article>
+          }
+        </div>
+        <footer class="recommendations-footer">
+          <svg lucideBriefcaseBusiness aria-hidden="true"></svg>
+          Mostrando {{ recommendations.length }} de
+          <strong>{{ totalRecommendations }}</strong> ofertas compatibles
+        </footer>
+      }
+    </section>
+
+    <section class="panel checklist-panel" aria-labelledby="checklist-title">
+      <header class="panel-header">
+        <h2 id="checklist-title">Completa tu perfil</h2>
+      </header>
+
+      <ol class="checklist">
+        <li [class.completed]="!!activeResume">
+          <span class="checklist-icon" aria-hidden="true"><svg lucideCloudUpload></svg></span>
+          <div>
+            <strong>Subir CV</strong>
+            <span>{{ activeResume ? 'Ya has subido tu CV' : 'Añade tu currículum para empezar' }}</span>
+          </div>
+          <span
+            class="check-state"
+            [attr.aria-label]="'Subir CV: ' + (activeResume ? 'completado' : 'pendiente')"
+          >
+            @if (activeResume) { <svg lucideCheck></svg> } @else { <svg lucideCircle></svg> }
+          </span>
+        </li>
+        <li [class.completed]="hasDetectedSkills">
+          <span class="checklist-icon" aria-hidden="true"><svg lucideStar></svg></span>
+          <div>
+            <strong>Revisar habilidades detectadas</strong>
+            <span>{{ hasDetectedSkills ? 'Habilidades extraídas de tu CV' : 'Pendiente del análisis del CV' }}</span>
+          </div>
+          <span
+            class="check-state"
+            [attr.aria-label]="'Revisar habilidades: ' + (hasDetectedSkills ? 'completado' : 'pendiente')"
+          >
+            @if (hasDetectedSkills) { <svg lucideCheck></svg> } @else { <svg lucideCircle></svg> }
+          </span>
+        </li>
+        <li [class.completed]="totalRecommendations > 0">
+          <span class="checklist-icon" aria-hidden="true"><svg lucideSearch></svg></span>
+          <div>
+            <strong>Buscar ofertas compatibles</strong>
+            <span>{{ totalRecommendations > 0 ? totalRecommendations + ' ofertas encontradas' : 'Explora ofertas recomendadas' }}</span>
+          </div>
+          <span
+            class="check-state"
+            [attr.aria-label]="'Buscar ofertas: ' + (totalRecommendations > 0 ? 'completado' : 'pendiente')"
+          >
+            @if (totalRecommendations > 0) { <svg lucideCheck></svg> } @else { <svg lucideCircle></svg> }
+          </span>
+        </li>
+        <li [class.completed]="savedCount > 0">
+          <span class="checklist-icon" aria-hidden="true"><svg lucideBookmark></svg></span>
+          <div>
+            <strong>Guardar ofertas interesantes</strong>
+            <span>{{ savedCount > 0 ? savedCount + (savedCount === 1 ? ' oferta guardada' : ' ofertas guardadas') : 'Guarda las ofertas que te interesen' }}</span>
+          </div>
+          <span
+            class="check-state"
+            [attr.aria-label]="'Guardar ofertas: ' + (savedCount > 0 ? 'completado' : 'pendiente')"
+          >
+            @if (savedCount > 0) { <svg lucideCheck></svg> } @else { <svg lucideCircle></svg> }
+          </span>
+        </li>
+        <li [class.completed]="appliedCount > 0">
+          <span class="checklist-icon" aria-hidden="true"><svg lucideSend></svg></span>
+          <div>
+            <strong>Marcar postulaciones</strong>
+            <span>{{ appliedCount > 0 ? appliedCount + (appliedCount === 1 ? ' oferta postulada' : ' ofertas postuladas') : 'Registra las ofertas a las que te postules' }}</span>
+          </div>
+          <span
+            class="check-state"
+            [attr.aria-label]="'Marcar postulaciones: ' + (appliedCount > 0 ? 'completado' : 'pendiente')"
+          >
+            @if (appliedCount > 0) { <svg lucideCheck></svg> } @else { <svg lucideCircle></svg> }
+          </span>
+        </li>
+      </ol>
+    </section>
   </div>
 </section>
-

@@ -1,4 +1,4 @@
-from app.models.auth import AccountToken, AuthSession, EmailOutbox
+from app.models.auth import AccountToken, AuthRateLimitBucket, AuthSession, EmailOutbox
 from app.models.feedback import UserJobInteraction
 from app.models.job import Job, JobImport, JobSearchTask, JobSkill
 from app.models.matching import MatchResult
@@ -10,6 +10,7 @@ __all__ = [
     "Job",
     "AccountToken",
     "AuthSession",
+    "AuthRateLimitBucket",
     "EmailOutbox",
     "JobImport",
     "JobSearchTask",

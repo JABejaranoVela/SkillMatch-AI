@@ -38,6 +38,10 @@ token dura 60 minutos, es de un solo uso y el cambio revoca todas las sesiones.
 `POST /auth/change-password` exige contrasena actual, nueva y confirmacion. Mantiene
 la sesion actual y revoca las demas.
 
+Las escrituras autenticadas con cookie requieren una cabecera `Origin` permitida.
+Login, registro, reenvio y recuperacion aplican limites persistentes. Registro y
+`forgot-password` mantienen su respuesta generica aunque se alcance el limite.
+
 ## CV
 
 Todos requieren usuario activo y correo verificado.
@@ -59,8 +63,8 @@ Todos requieren usuario activo y correo verificado.
 | Metodo | Ruta | Descripcion |
 |---|---|---|
 | GET | `/jobs` | Lista ofertas recomendables importadas |
-| POST | `/jobs` | Crea una oferta tecnica/manual |
-| POST | `/jobs/import` | Importa un archivo CSV o JSON |
+| POST | `/jobs` | Admin: crea una oferta tecnica/manual |
+| POST | `/jobs/import` | Admin: importa un archivo CSV o JSON |
 | POST | `/jobs/search/profile` | Inicia busqueda asincrona para el perfil |
 | GET | `/jobs/search/{task_id}` | Consulta el estado de la busqueda |
 | GET | `/jobs/recommended` | Ranking paginado del CV activo |
@@ -98,4 +102,5 @@ Todos requieren usuario activo y correo verificado.
 - `403`: cuenta deshabilitada o correo sin verificar.
 - `409`: conflicto de estado o token ya usado.
 - `410`: token de verificacion caducado.
-- `429`: cooldown de reenvio; incluye `Retry-After`.
+- `429`: cooldown o rate limit; incluye `Retry-After` cuando no afecta a una
+  respuesta publica generica.

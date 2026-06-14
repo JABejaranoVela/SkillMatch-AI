@@ -30,7 +30,7 @@ RETRY_DELAYS = (
     timedelta(minutes=60),
     timedelta(minutes=240),
 )
-MAX_ATTEMPTS = len(RETRY_DELAYS) + 1
+MAX_ATTEMPTS = settings.EMAIL_MAX_ATTEMPTS
 MAX_ERROR_LENGTH = 1000
 
 
@@ -111,14 +111,43 @@ def recover_abandoned_messages(
         update(EmailOutbox)
         .where(
             EmailOutbox.status == EmailOutboxStatus.SENDING,
-            EmailOutbox.last_attempt_at.is_not(None),
-            EmailOutbox.last_attempt_at <= stale_before,
             EmailOutbox.encrypted_payload.is_not(None),
+            (
+                (EmailOutbox.last_attempt_at.is_not(None))
+                & (EmailOutbox.last_attempt_at <= stale_before)
+            )
+            | (
+                (EmailOutbox.last_attempt_at.is_(None))
+                & (EmailOutbox.updated_at <= stale_before)
+            ),
         )
         .values(
             status=EmailOutboxStatus.PENDING,
             next_attempt_at=current_time,
             last_error="Recovered abandoned email delivery",
+            updated_at=current_time,
+        )
+    )
+    return int(result.rowcount or 0)
+
+
+def cancel_legacy_messages(
+    db: Session,
+    *,
+    now: datetime | None = None,
+) -> int:
+    current_time = now or utc_now()
+    result = db.execute(
+        update(EmailOutbox)
+        .where(
+            EmailOutbox.status.in_(
+                [EmailOutboxStatus.PENDING, EmailOutboxStatus.SENDING]
+            ),
+            EmailOutbox.encrypted_payload.is_(None),
+        )
+        .values(
+            status=EmailOutboxStatus.CANCELLED,
+            last_error="Encrypted email payload is missing",
             updated_at=current_time,
         )
     )
@@ -132,6 +161,7 @@ def claim_due_messages(
     batch_size: int | None = None,
 ) -> list[int]:
     current_time = now or utc_now()
+    cancel_legacy_messages(db, now=current_time)
     recover_abandoned_messages(db, now=current_time)
     messages = list(
         db.scalars(
@@ -183,7 +213,7 @@ def process_outbox_message(
     except EmailPayloadError as exc:
         _handle_failure(
             outbox,
-            EmailDeliveryError(str(exc), retryable=True),
+            EmailDeliveryError(str(exc), retryable=False),
             current_time,
         )
         db.commit()
@@ -285,7 +315,11 @@ def _handle_failure(
 ) -> None:
     outbox.last_error = _sanitize_error(str(error))
     outbox.updated_at = now
-    if error.retryable and outbox.attempts <= len(RETRY_DELAYS):
+    if (
+        error.retryable
+        and outbox.attempts < settings.EMAIL_MAX_ATTEMPTS
+        and outbox.attempts <= len(RETRY_DELAYS)
+    ):
         outbox.status = EmailOutboxStatus.PENDING
         outbox.next_attempt_at = now + RETRY_DELAYS[outbox.attempts - 1]
         return

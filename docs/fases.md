@@ -42,7 +42,7 @@
 
 - Tests backend de autenticacion, permisos, skills y ofertas.
 - Tests de cifrado, proveedores, reintentos, recuperacion y cancelacion del outbox.
-- Tests Angular de guards.
+- Tests Angular de guards y formularios de cuenta.
 - Ruff, build Angular y OpenAPI.
 - Pendiente ampliar tests de componentes y pruebas end-to-end.
 
@@ -62,11 +62,18 @@
 - Reset con revocacion total de sesiones.
 - Cambio autenticado con revocacion de las demas sesiones.
 
-## 9. Operacion Y Privacidad - Pendiente
+## 9. Seguridad Y Operacion Basica - Completada
 
-- Borrado de cuenta/CV y retencion de datos.
-- Logs estructurados, metricas y alertas.
-- Backups y despliegue productivo.
+- Validacion de configuracion productiva, cookies, CORS y Origin.
+- Rate limiting persistente sin Redis.
+- Retencion de sesiones, tokens, outbox y buckets con comando de limpieza.
+- Worker robustecido ante filas legacy y payloads invalidos.
+
+Pendiente para una operacion madura:
+
+- Borrado de cuenta/CV y retencion completa de datos personales.
+- Metricas, alertas y backups restaurados periodicamente.
+- Pipeline de despliegue productivo.
 
 ## 10. Aprendizaje Supervisado - Futuro
 

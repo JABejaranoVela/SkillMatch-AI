@@ -49,6 +49,17 @@ Estados: `pending`, `sending`, `sent`, `failed` y `cancelled`. Los payloads se
 eliminan al enviar, cancelar o agotar reintentos. La migracion `20260611_0009`
 cancela filas legacy `pending`/`sending` que no tienen payload cifrado.
 
+### `auth_rate_limit_buckets`
+
+Ventanas persistentes contra abuso:
+
+- clave HMAC-SHA256 unica y accion;
+- contador, inicio y expiracion de ventana;
+- fechas de creacion y actualizacion.
+
+La clave combina accion, ventana e identificadores normalizados. No permite
+recuperar el email o la IP usados para construirla.
+
 ## CV Y Perfil
 
 ### `resumes`
@@ -124,6 +135,7 @@ resultado de matching que vio el usuario.
 users
   |-- auth_sessions
   |-- account_tokens -- email_outbox
+  |-- auth_rate_limit_buckets (sin FK; claves anonimizadas)
   |-- resumes -- professional_profiles -- profile_skills -- skills
   |-- match_results -- jobs -- job_skills -- skills
   |-- user_job_interactions -- jobs

@@ -16,6 +16,7 @@ from app.services.email.contracts import (
 from app.services.email.crypto import EmailPayloadCipher
 from app.services.email.outbox import (
     RETRY_DELAYS,
+    cancel_legacy_messages,
     claim_due_messages,
     enqueue_password_reset_email,
     enqueue_verification_email,
@@ -217,7 +218,7 @@ def test_console_email_service_hides_content_in_production(caplog) -> None:
 
     service.send(message)
 
-    assert "user@example.com" in caplog.text
+    assert "user@example.com" not in caplog.text
     assert "secret-token" not in caplog.text
     assert "/verify-email" not in caplog.text
     assert message.subject not in caplog.text
@@ -375,6 +376,22 @@ def test_sixth_retryable_failure_becomes_failed() -> None:
     assert outbox.encrypted_payload is None
 
 
+def test_corrupt_encrypted_payload_fails_without_retry() -> None:
+    outbox, account_token = make_outbox_and_token()
+    outbox.encrypted_payload = "not-a-fernet-payload"
+    db = OutboxSession(outbox=outbox, account_token=account_token)
+
+    status = process_outbox_message(
+        db,
+        outbox.id,
+        email_service=FakeEmailService(),
+        cipher=EmailPayloadCipher(FERNET_KEY),
+    )
+
+    assert status == EmailOutboxStatus.FAILED
+    assert outbox.encrypted_payload is None
+
+
 @pytest.mark.parametrize(("used", "expired"), [(True, False), (False, True)])
 def test_invalid_token_cancels_email(used: bool, expired: bool) -> None:
     outbox, account_token = make_outbox_and_token(used=used, expired=expired)
@@ -419,4 +436,13 @@ def test_recover_abandoned_messages_returns_updated_count() -> None:
     recovered = recover_abandoned_messages(db, now=utc_now())
 
     assert recovered == 2
+    assert len(db.executed) == 1
+
+
+def test_cancel_legacy_messages_returns_updated_count() -> None:
+    db = OutboxSession()
+
+    cancelled = cancel_legacy_messages(db, now=utc_now())
+
+    assert cancelled == 2
     assert len(db.executed) == 1

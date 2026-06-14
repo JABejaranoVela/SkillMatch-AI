@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.core.request_security import AuthenticatedOriginMiddleware
 from app.services.embeddings.semantic import warm_up_embeddings_model
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(AuthenticatedOriginMiddleware)
 
     @app.on_event("startup")
     def preload_embeddings_model() -> None:

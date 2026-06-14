@@ -7,7 +7,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, U
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
-from app.api.deps import get_active_user
+from app.api.deps import get_active_user, get_admin_user
 from app.core.config import settings
 from app.db.session import SessionLocal, get_db
 from app.models.job import Job, JobSearchTask, JobStatus
@@ -46,7 +46,7 @@ def list_jobs(
 def create_job(
     payload: JobCreate,
     db: Annotated[Session, Depends(get_db)],
-    _current_user: Annotated[User, Depends(get_active_user)],
+    _current_user: Annotated[User, Depends(get_admin_user)],
 ) -> Job:
     job = Job(**payload.model_dump(mode="json"))
     db.add(job)
@@ -59,7 +59,7 @@ def create_job(
 def import_jobs(
     file: UploadFile,
     db: Annotated[Session, Depends(get_db)],
-    _current_user: Annotated[User, Depends(get_active_user)],
+    _current_user: Annotated[User, Depends(get_admin_user)],
 ) -> dict:
     raw_content = file.file.read()
     content = raw_content.decode("utf-8-sig")

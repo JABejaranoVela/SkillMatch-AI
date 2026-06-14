@@ -13,6 +13,8 @@ Actualizado: 11 de junio de 2026.
 - `EmailService` desacoplado con consola, fake de tests y Brevo API.
 - `email_outbox` con payload Fernet, token asociado, intentos y ultimo error.
 - Worker separado con recuperacion de filas abandonadas y reintentos escalonados.
+- Rate limiting persistente en PostgreSQL para los flujos de autenticacion.
+- Limpieza operativa de sesiones, tokens, outbox y buckets con modo `--dry-run`.
 - Recuperacion de contrasena con token hasheado de 60 minutos y correo encolado.
 - Cambio autenticado de contrasena conservando solo la sesion actual.
 - Subida de CV PDF/DOCX con limite de 10 MB.
@@ -39,6 +41,10 @@ Actualizado: 11 de junio de 2026.
 - Los correos se cancelan si su token fue usado, caduco o se invalido por reenvio.
 - El reset revoca todas las sesiones y limita solicitudes a cinco por usuario/hora.
 - En produccion no se registran enlaces de verificacion ni tokens.
+- Tampoco se registran emails, IPs ni payloads descifrados en produccion.
+- Las escrituras autenticadas con cookie validan su cabecera `Origin`.
+- CORS productivo exige HTTPS, incluye `FRONTEND_URL` y no admite comodines o
+  localhost.
 - Los CV y el directorio `storage/` estan excluidos de Git.
 
 ## Datos Y Fuentes
@@ -62,11 +68,11 @@ Actualizado: 11 de junio de 2026.
 
 ## Calidad Verificada
 
-- 92 pruebas backend superadas.
-- 11 pruebas Angular superadas.
+- 117 pruebas backend superadas.
+- 23 pruebas Angular superadas en la Fase 6.
 - Ruff sin errores.
 - Build Angular correcto.
-- Migracion Alembic actual: `20260611_0009`.
+- Migracion Alembic actual: `20260611_0010`.
 - OpenAPI expone los endpoints de autenticacion y verificacion actuales.
 
 ## URLs Locales
@@ -78,7 +84,7 @@ Actualizado: 11 de junio de 2026.
 
 ## Pendiente
 
-- Politica de borrado y retencion de datos personales.
+- Borrado de cuenta/CV y politica completa de retencion de datos personales.
 - Eliminacion de cuenta y CV desde la interfaz.
 - Evaluacion cuantitativa con pares CV-oferta etiquetados.
 - Uso supervisado del feedback.

@@ -8,6 +8,7 @@ from app.api.deps import get_active_user
 from app.db.session import get_db
 from app.models.feedback import InteractionType, UserJobInteraction
 from app.models.job import Job
+from app.models.matching import MatchResult
 from app.models.resume import Resume
 from app.models.user import User
 from app.schemas.feedback import FeedbackCreate, FeedbackJobRead, FeedbackRead
@@ -30,6 +31,15 @@ def create_feedback(
 
     if not db.get(Job, payload.job_id):
         raise HTTPException(status_code=404, detail="Oferta no encontrada")
+
+    if payload.match_result_id is not None:
+        match_result = db.get(MatchResult, payload.match_result_id)
+        if (
+            match_result is None
+            or match_result.user_id != current_user.id
+            or match_result.job_id != payload.job_id
+        ):
+            raise HTTPException(status_code=404, detail="Resultado de matching no encontrado")
 
     interaction = UserJobInteraction(
         user_id=current_user.id,

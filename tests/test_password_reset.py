@@ -2,7 +2,7 @@ from datetime import timedelta
 from types import SimpleNamespace
 
 import pytest
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 from pydantic import ValidationError
 
 from app.api.v1.endpoints import auth
@@ -53,6 +53,27 @@ class PasswordResetSession:
 
     def commit(self) -> None:
         self.commits += 1
+
+
+def make_request(path: str) -> Request:
+    return Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": path,
+            "headers": [],
+            "client": ("127.0.0.1", 50000),
+        }
+    )
+
+
+@pytest.fixture(autouse=True)
+def allow_rate_limits(monkeypatch) -> None:
+    monkeypatch.setattr(
+        auth,
+        "consume_rate_limit",
+        lambda **_kwargs: SimpleNamespace(allowed=True, retry_after=0),
+    )
 
 
 def active_user():
@@ -116,8 +137,9 @@ def test_forgot_password_always_returns_generic_for_ineligible_user(user) -> Non
     db = PasswordResetSession(scalar_values=[user])
 
     response = auth.forgot_password(
-        ForgotPasswordRequest(email="missing@example.com"),
-        db,
+        payload=ForgotPasswordRequest(email="missing@example.com"),
+        request=make_request("/api/v1/auth/forgot-password"),
+        db=db,
     )
 
     assert response.message == auth.FORGOT_PASSWORD_MESSAGE
@@ -131,8 +153,9 @@ def test_forgot_password_creates_token_and_encrypted_outbox(monkeypatch) -> None
     monkeypatch.setattr(auth, "password_reset_request_allowed", lambda *_: True)
 
     response = auth.forgot_password(
-        ForgotPasswordRequest(email="USER@example.com"),
-        db,
+        payload=ForgotPasswordRequest(email="USER@example.com"),
+        request=make_request("/api/v1/auth/forgot-password"),
+        db=db,
     )
 
     assert response.message == auth.FORGOT_PASSWORD_MESSAGE
@@ -151,13 +174,34 @@ def test_forgot_password_silently_respects_rate_limit(monkeypatch) -> None:
     monkeypatch.setattr(auth, "password_reset_request_allowed", lambda *_: False)
 
     response = auth.forgot_password(
-        ForgotPasswordRequest(email="user@example.com"),
-        db,
+        payload=ForgotPasswordRequest(email="user@example.com"),
+        request=make_request("/api/v1/auth/forgot-password"),
+        db=db,
     )
 
     assert response.message == auth.FORGOT_PASSWORD_MESSAGE
     assert db.added == []
     assert db.commits == 0
+
+
+def test_forgot_password_keeps_generic_response_for_bucket_limit(monkeypatch) -> None:
+    results = iter(
+        [
+            SimpleNamespace(allowed=False, retry_after=1200),
+            SimpleNamespace(allowed=True, retry_after=1200),
+        ]
+    )
+    monkeypatch.setattr(auth, "consume_rate_limit", lambda **_kwargs: next(results))
+    db = PasswordResetSession()
+
+    response = auth.forgot_password(
+        payload=ForgotPasswordRequest(email="user@example.com"),
+        request=make_request("/api/v1/auth/forgot-password"),
+        db=db,
+    )
+
+    assert response.message == auth.FORGOT_PASSWORD_MESSAGE
+    assert db.added == []
 
 
 def test_valid_reset_changes_password_and_revokes_all_sessions(monkeypatch) -> None:
@@ -178,12 +222,13 @@ def test_valid_reset_changes_password_and_revokes_all_sessions(monkeypatch) -> N
     monkeypatch.setattr(auth, "revoke_user_sessions", capture_revocation)
 
     response = auth.reset_password(
-        ResetPasswordRequest(
+        payload=ResetPasswordRequest(
             token="x" * 48,
             new_password="new-password-123",
             confirm_password="new-password-123",
         ),
-        db,
+        request=make_request("/api/v1/auth/reset-password"),
+        db=db,
     )
 
     assert response.message == "Contrasena restablecida correctamente"
@@ -207,12 +252,13 @@ def test_reset_rejects_invalid_used_or_expired_token(
 
     with pytest.raises(HTTPException) as exc_info:
         auth.reset_password(
-            ResetPasswordRequest(
+            payload=ResetPasswordRequest(
                 token="x" * 48,
                 new_password="new-password-123",
                 confirm_password="new-password-123",
             ),
-            PasswordResetSession(),
+            request=make_request("/api/v1/auth/reset-password"),
+            db=PasswordResetSession(),
         )
 
     assert exc_info.value.status_code == expected_status
@@ -226,3 +272,25 @@ def test_reset_requires_matching_confirmation() -> None:
             new_password="new-password-123",
             confirm_password="different-password",
         )
+
+
+def test_reset_password_rate_limit_returns_retry_after(monkeypatch) -> None:
+    monkeypatch.setattr(
+        auth,
+        "consume_rate_limit",
+        lambda **_kwargs: SimpleNamespace(allowed=False, retry_after=600),
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        auth.reset_password(
+            payload=ResetPasswordRequest(
+                token="x" * 48,
+                new_password="new-password-123",
+                confirm_password="new-password-123",
+            ),
+            request=make_request("/api/v1/auth/reset-password"),
+            db=PasswordResetSession(),
+        )
+
+    assert exc_info.value.status_code == 429
+    assert exc_info.value.headers["Retry-After"] == "600"

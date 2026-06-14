@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import bcrypt
 import pytest
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 
 from app.api.v1.endpoints.auth import change_password, update_me
 from app.core.security import (
@@ -24,6 +24,26 @@ class AccountSession:
 
     def refresh(self, _item) -> None:
         self.refreshes += 1
+
+
+def make_request() -> Request:
+    return Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/api/v1/auth/change-password",
+            "headers": [],
+            "client": ("127.0.0.1", 50000),
+        }
+    )
+
+
+@pytest.fixture(autouse=True)
+def allow_rate_limits(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.auth.consume_rate_limit",
+        lambda **_kwargs: SimpleNamespace(allowed=True, retry_after=0),
+    )
 
 
 def test_update_me_normalizes_name() -> None:
@@ -61,6 +81,7 @@ def test_change_password_rejects_wrong_current_password(monkeypatch) -> None:
                 new_password="nueva-segura-1234",
                 confirm_password="nueva-segura-1234",
             ),
+            request=make_request(),
             db=db,
             current_user=user,
             current_session=session,
@@ -105,6 +126,7 @@ def test_change_password_hashes_new_password_and_keeps_current_session(
             new_password="nueva-segura-1234",
             confirm_password="nueva-segura-1234",
         ),
+        request=make_request(),
         db=db,
         current_user=user,
         current_session=session,
@@ -137,6 +159,7 @@ def test_change_password_rejects_reused_password(monkeypatch) -> None:
                 new_password="actual-segura",
                 confirm_password="actual-segura",
             ),
+            request=make_request(),
             db=db,
             current_user=user,
             current_session=session,
@@ -144,6 +167,32 @@ def test_change_password_rejects_reused_password(monkeypatch) -> None:
 
     assert exc_info.value.status_code == 400
     assert db.commits == 0
+
+
+def test_change_password_rate_limit_returns_retry_after(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.auth.consume_rate_limit",
+        lambda **_kwargs: SimpleNamespace(allowed=False, retry_after=700),
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        change_password(
+            payload=PasswordChange(
+                current_password="actual-segura",
+                new_password="nueva-segura-1234",
+                confirm_password="nueva-segura-1234",
+            ),
+            request=make_request(),
+            db=AccountSession(),
+            current_user=SimpleNamespace(
+                id=1,
+                hashed_password=hash_password("actual-segura"),
+            ),
+            current_session=SimpleNamespace(id=9),
+        )
+
+    assert exc_info.value.status_code == 429
+    assert exc_info.value.headers["Retry-After"] == "700"
 
 
 def test_new_passwords_use_argon2id() -> None:

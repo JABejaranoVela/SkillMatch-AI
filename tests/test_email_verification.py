@@ -2,7 +2,7 @@ from datetime import timedelta
 from types import SimpleNamespace
 
 import pytest
-from fastapi import HTTPException, Response
+from fastapi import HTTPException, Request, Response
 
 from app.api.v1.endpoints import auth
 from app.models.auth import AccountTokenPurpose
@@ -61,20 +61,45 @@ class TokenSession:
         self.refreshed.append(item)
 
 
-def make_pending_user():
+def make_request(path: str) -> Request:
+    return Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": path,
+            "headers": [],
+            "client": ("127.0.0.1", 50000),
+        }
+    )
+
+
+@pytest.fixture(autouse=True)
+def allow_rate_limits(monkeypatch) -> None:
+    monkeypatch.setattr(
+        auth,
+        "consume_rate_limit",
+        lambda **_kwargs: SimpleNamespace(allowed=True, retry_after=0),
+    )
+
+
+def make_user(status: UserStatus = UserStatus.PENDING):
     return SimpleNamespace(
         id=1,
         email="pending@example.com",
         full_name="Pending User",
-        status=UserStatus.PENDING,
-        email_verified_at=None,
+        status=status,
+        email_verified_at=utc_now() if status == UserStatus.ACTIVE else None,
     )
 
 
-def make_account_token(*, used=False, expired=False):
+def make_pending_user():
+    return make_user()
+
+
+def make_account_token(*, used=False, expired=False, status=UserStatus.PENDING):
     now = utc_now()
     return SimpleNamespace(
-        user=make_pending_user(),
+        user=make_user(status),
         used_at=now if used else None,
         expires_at=now - timedelta(seconds=1) if expired else now + timedelta(hours=1),
     )
@@ -125,12 +150,13 @@ def test_register_creates_pending_unverified_user() -> None:
     db = TokenSession()
 
     response = auth.register(
-        UserCreate(
+        payload=UserCreate(
             email="new@example.com",
             password="Password1234",
             full_name="New User",
         ),
-        db,
+        request=make_request("/api/v1/auth/register"),
+        db=db,
     )
 
     user = next(item for item in db.added if item.__class__.__name__ == "User")
@@ -147,17 +173,57 @@ def test_register_creates_pending_unverified_user() -> None:
     assert payload["verification_token"]
 
 
+def test_register_stores_normalized_email() -> None:
+    db = TokenSession()
+
+    auth.register(
+        payload=UserCreate(
+            email="NEW.User@Example.COM",
+            password="Password1234",
+            full_name="New User",
+        ),
+        request=make_request("/api/v1/auth/register"),
+        db=db,
+    )
+
+    user = next(item for item in db.added if item.__class__.__name__ == "User")
+    assert user.email == "new.user@example.com"
+
+
 def test_register_does_not_reveal_existing_email() -> None:
     existing_user = make_pending_user()
     db = TokenSession(scalar_value=existing_user)
 
     response = auth.register(
-        UserCreate(
-            email=existing_user.email,
+        payload=UserCreate(
+            email="PENDING@EXAMPLE.COM",
             password="Password1234",
             full_name="Existing User",
         ),
-        db,
+        request=make_request("/api/v1/auth/register"),
+        db=db,
+    )
+
+    assert response.message == auth.REGISTRATION_MESSAGE
+    assert db.added == []
+
+
+def test_register_keeps_generic_response_when_rate_limited(monkeypatch) -> None:
+    monkeypatch.setattr(
+        auth,
+        "consume_rate_limit",
+        lambda **_kwargs: SimpleNamespace(allowed=False, retry_after=1200),
+    )
+    db = TokenSession()
+
+    response = auth.register(
+        payload=UserCreate(
+            email="new@example.com",
+            password="Password1234",
+            full_name="New User",
+        ),
+        request=make_request("/api/v1/auth/register"),
+        db=db,
     )
 
     assert response.message == auth.REGISTRATION_MESSAGE
@@ -174,6 +240,36 @@ def test_valid_verification_token_activates_user(monkeypatch) -> None:
     assert response.message == "Correo verificado correctamente"
     assert account_token.user.status == UserStatus.ACTIVE
     assert account_token.user.email_verified_at is not None
+    assert account_token.used_at is not None
+    assert db.commits == 1
+
+
+def test_valid_verification_token_is_idempotent_for_active_user(monkeypatch) -> None:
+    db = TokenSession()
+    account_token = make_account_token(status=UserStatus.ACTIVE)
+    verified_at = account_token.user.email_verified_at
+    monkeypatch.setattr(auth, "find_email_verification_token", lambda *_: account_token)
+
+    response = auth.verify_email(VerifyEmailRequest(token="x" * 48), db)
+
+    assert response.message == "Correo verificado correctamente"
+    assert account_token.user.status == UserStatus.ACTIVE
+    assert account_token.user.email_verified_at == verified_at
+    assert account_token.used_at is not None
+    assert db.commits == 1
+
+
+def test_valid_verification_token_does_not_reactivate_disabled_user(monkeypatch) -> None:
+    db = TokenSession()
+    account_token = make_account_token(status=UserStatus.DISABLED)
+    monkeypatch.setattr(auth, "find_email_verification_token", lambda *_: account_token)
+
+    with pytest.raises(HTTPException) as exc_info:
+        auth.verify_email(VerifyEmailRequest(token="x" * 48), db)
+
+    assert exc_info.value.status_code == 400
+    assert account_token.user.status == UserStatus.DISABLED
+    assert account_token.user.email_verified_at is None
     assert account_token.used_at is not None
     assert db.commits == 1
 
@@ -229,6 +325,7 @@ def test_resend_endpoint_rejects_request_during_cooldown(monkeypatch) -> None:
 
     with pytest.raises(HTTPException) as exc_info:
         auth.resend_verification(
+            request=make_request("/api/v1/auth/resend-verification"),
             response=Response(),
             db=TokenSession(),
             current_user=make_pending_user(),
@@ -236,3 +333,22 @@ def test_resend_endpoint_rejects_request_during_cooldown(monkeypatch) -> None:
 
     assert exc_info.value.status_code == 429
     assert exc_info.value.headers["Retry-After"] == "42"
+
+
+def test_resend_hourly_limit_returns_retry_after(monkeypatch) -> None:
+    monkeypatch.setattr(
+        auth,
+        "consume_rate_limit",
+        lambda **_kwargs: SimpleNamespace(allowed=False, retry_after=900),
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        auth.resend_verification(
+            request=make_request("/api/v1/auth/resend-verification"),
+            response=Response(),
+            db=TokenSession(),
+            current_user=make_pending_user(),
+        )
+
+    assert exc_info.value.status_code == 429
+    assert exc_info.value.headers["Retry-After"] == "900"

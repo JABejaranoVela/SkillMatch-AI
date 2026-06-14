@@ -20,6 +20,14 @@ from app.services.auth.sessions import (
 )
 
 
+@pytest.fixture(autouse=True)
+def allow_rate_limits(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.auth.consume_rate_limit",
+        lambda **_kwargs: SimpleNamespace(allowed=True, retry_after=0),
+    )
+
+
 class EndpointSession:
     def __init__(self, user=None, previous_session=None) -> None:
         self.user = user
@@ -170,6 +178,24 @@ def test_login_creates_hashed_session_and_upgrades_bcrypt() -> None:
     assert auth_session.user_agent == "pytest"
 
 
+def test_login_normalizes_email_before_lookup() -> None:
+    user = make_user(hash_password("Password1234"))
+    db = EndpointSession(user=user)
+
+    result = login(
+        form_data=SimpleNamespace(
+            username="  USER@EXAMPLE.COM  ",
+            password="Password1234",
+        ),
+        db=db,
+        request=make_request(),
+        response=Response(),
+    )
+
+    assert result is user
+    assert db.commits == 1
+
+
 def test_login_revokes_previous_cookie_session() -> None:
     previous_session = SimpleNamespace(revoked_at=None)
     user = make_user(hash_password("Password1234"))
@@ -230,6 +256,27 @@ def test_disabled_user_cannot_create_session() -> None:
     assert exc_info.value.status_code == 403
     assert db.added == []
     assert db.commits == 0
+
+
+def test_login_rate_limit_returns_retry_after(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.auth.consume_rate_limit",
+        lambda **_kwargs: SimpleNamespace(allowed=False, retry_after=321),
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        login(
+            form_data=SimpleNamespace(
+                username="user@example.com",
+                password="Password1234",
+            ),
+            db=EndpointSession(),
+            request=make_request(),
+            response=Response(),
+        )
+
+    assert exc_info.value.status_code == 429
+    assert exc_info.value.headers["Retry-After"] == "321"
 
 
 def test_logout_revokes_session_and_clears_cookie() -> None:

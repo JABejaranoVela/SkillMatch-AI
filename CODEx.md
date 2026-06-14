@@ -99,6 +99,11 @@ No estan implementados todavia:
 - En produccion no se registran enlaces completos ni tokens.
 - La recuperacion admite cinco solicitudes por usuario y hora. El reset revoca
   todas las sesiones; el cambio autenticado conserva solo la sesion actual.
+- Las escrituras que reciben cookie de sesion deben validar `Origin` contra
+  `FRONTEND_URL`/CORS. No desactivar este middleware para resolver problemas de
+  clientes externos.
+- El rate limiting usa `auth_rate_limit_buckets` y claves HMAC-SHA256. No persistir
+  identificadores, emails ni IPs en claro.
 - Los usuarios `pending` pueden iniciar sesion, consultar la sesion, reenviar la
   verificacion y cerrar sesion.
 - CV, ofertas y feedback requieren `status=active` y `email_verified_at`.
@@ -130,6 +135,8 @@ No estan implementados todavia:
 - No introducir servicios externos obligatorios sin fallback.
 - No versionar `.env`, CVs, logs, caches, builds o bases de datos locales.
 - No cambiar `EMAIL_PAYLOAD_ENCRYPTION_KEY` mientras existan correos pendientes.
+- Mantener `TRUST_PROXY_HEADERS=false` salvo que un proxy controlado sea el unico
+  acceso al backend y sobrescriba `X-Forwarded-For`.
 - Crear migraciones Alembic para cualquier cambio de esquema.
 - Mantener OpenAPI alineado con la implementacion.
 - Anadir tests para autenticacion, permisos, parsing, matching y cambios de rutas.
@@ -140,6 +147,7 @@ No estan implementados todavia:
 ```bash
 docker compose exec backend pytest -q
 docker compose exec backend ruff check app tests
+docker compose exec backend python -m app.commands.cleanup --dry-run
 cd frontend
 npm run test:ci
 npm run build

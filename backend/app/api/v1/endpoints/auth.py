@@ -11,6 +11,7 @@ from app.api.deps import (
     get_current_user,
     get_pending_user,
 )
+from app.core.config import settings
 from app.core.security import hash_password, verify_password, verify_password_and_update
 from app.db.session import get_db
 from app.models.auth import AccountTokenPurpose, AuthSession
@@ -35,6 +36,8 @@ from app.services.auth.account_tokens import (
     password_reset_request_allowed,
     seconds_until_resend_allowed,
 )
+from app.services.auth.identifiers import normalize_email
+from app.services.auth.rate_limits import client_ip_identifier, consume_rate_limit
 from app.services.auth.sessions import (
     clear_session_cookie,
     create_session,
@@ -70,14 +73,27 @@ INVALID_RESET_LINK_MESSAGE = "El enlace no es válido o ha caducado."
 )
 def register(
     payload: UserCreate,
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
 ) -> AuthMessage:
-    existing_user = db.scalar(select(User).where(User.email == payload.email))
+    normalized_email = normalize_email(payload.email)
+    rate_limit = consume_rate_limit(
+        action="register",
+        identifiers=[client_ip_identifier(request)],
+        limit=settings.REGISTER_RATE_LIMIT_PER_HOUR,
+        window_seconds=3600,
+    )
+    if not rate_limit.allowed:
+        return AuthMessage(message=REGISTRATION_MESSAGE)
+
+    existing_user = db.scalar(
+        select(User).where(func.lower(User.email) == normalized_email)
+    )
     if existing_user:
         return AuthMessage(message=REGISTRATION_MESSAGE)
 
     user = User(
-        email=payload.email,
+        email=normalized_email,
         full_name=payload.full_name,
         hashed_password=hash_password(payload.password),
         status=UserStatus.PENDING,
@@ -121,8 +137,16 @@ def verify_email(
 
     now = utc_now()
     user = account_token.user
-    user.status = UserStatus.ACTIVE
-    user.email_verified_at = now
+    if user.status == UserStatus.DISABLED:
+        account_token.used_at = now
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El enlace de verificacion no es valido para esta cuenta",
+        )
+    if user.status == UserStatus.PENDING:
+        user.status = UserStatus.ACTIVE
+        user.email_verified_at = now
     account_token.used_at = now
     db.commit()
     return AuthMessage(message="Correo verificado correctamente")
@@ -130,10 +154,24 @@ def verify_email(
 
 @router.post("/resend-verification", response_model=AuthMessage)
 def resend_verification(
+    request: Request,
     response: Response,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_pending_user)],
 ) -> AuthMessage:
+    rate_limit = consume_rate_limit(
+        action="resend_verification",
+        identifiers=[str(current_user.id)],
+        limit=settings.RESEND_RATE_LIMIT_PER_HOUR,
+        window_seconds=3600,
+    )
+    if not rate_limit.allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Debes esperar antes de solicitar otro correo",
+            headers={"Retry-After": str(rate_limit.retry_after)},
+        )
+
     retry_after = seconds_until_resend_allowed(db, current_user.id)
     if retry_after:
         response.headers["Retry-After"] = str(retry_after)
@@ -165,9 +203,25 @@ def resend_verification(
 )
 def forgot_password(
     payload: ForgotPasswordRequest,
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
 ) -> AuthMessage:
-    normalized_email = str(payload.email).strip().lower()
+    normalized_email = normalize_email(payload.email)
+    ip_rate_limit = consume_rate_limit(
+        action="forgot_password_ip",
+        identifiers=[client_ip_identifier(request)],
+        limit=settings.FORGOT_PASSWORD_IP_RATE_LIMIT_PER_HOUR,
+        window_seconds=3600,
+    )
+    email_rate_limit = consume_rate_limit(
+        action="forgot_password_email",
+        identifiers=[normalized_email],
+        limit=settings.PASSWORD_RESET_MAX_REQUESTS_PER_HOUR,
+        window_seconds=3600,
+    )
+    if not ip_rate_limit.allowed or not email_rate_limit.allowed:
+        return AuthMessage(message=FORGOT_PASSWORD_MESSAGE)
+
     user = db.scalar(
         select(User)
         .where(func.lower(User.email) == normalized_email)
@@ -195,8 +249,16 @@ def forgot_password(
 @router.post("/reset-password", response_model=AuthMessage)
 def reset_password(
     payload: ResetPasswordRequest,
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
 ) -> AuthMessage:
+    _enforce_rate_limit(
+        action="reset_password",
+        identifiers=[client_ip_identifier(request)],
+        limit=settings.RESET_PASSWORD_RATE_LIMIT_PER_HOUR,
+        window_seconds=3600,
+    )
+
     account_token = find_password_reset_token(db, payload.token)
     if account_token is None:
         raise HTTPException(
@@ -244,7 +306,16 @@ def login(
     request: Request,
     response: Response,
 ) -> User:
-    user = db.scalar(select(User).where(User.email == form_data.username))
+    normalized_email = normalize_email(form_data.username)
+    _enforce_rate_limit(
+        action="login",
+        identifiers=[client_ip_identifier(request), normalized_email],
+        limit=settings.LOGIN_RATE_LIMIT_ATTEMPTS,
+        window_seconds=settings.LOGIN_RATE_LIMIT_WINDOW_MINUTES * 60,
+    )
+    user = db.scalar(
+        select(User).where(func.lower(User.email) == normalized_email)
+    )
     if not user:
         raise HTTPException(status_code=401, detail="Credenciales incorrectas")
 
@@ -312,10 +383,17 @@ def update_me(
 @router.post("/change-password", response_model=AuthMessage)
 def change_password(
     payload: PasswordChange,
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_active_user)],
     current_session: Annotated[AuthSession, Depends(get_current_session)],
 ) -> AuthMessage:
+    _enforce_rate_limit(
+        action="change_password",
+        identifiers=[str(current_user.id)],
+        limit=settings.CHANGE_PASSWORD_RATE_LIMIT_PER_HOUR,
+        window_seconds=3600,
+    )
     if not verify_password(payload.current_password, current_user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -343,3 +421,25 @@ def change_password(
     )
     db.commit()
     return AuthMessage(message="Contrasena actualizada correctamente")
+
+
+def _enforce_rate_limit(
+    *,
+    action: str,
+    identifiers: list[str],
+    limit: int,
+    window_seconds: int,
+) -> None:
+    result = consume_rate_limit(
+        action=action,
+        identifiers=identifiers,
+        limit=limit,
+        window_seconds=window_seconds,
+    )
+    if result.allowed:
+        return
+    raise HTTPException(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        detail="Demasiadas solicitudes. Intentalo de nuevo mas tarde.",
+        headers={"Retry-After": str(result.retry_after)},
+    )

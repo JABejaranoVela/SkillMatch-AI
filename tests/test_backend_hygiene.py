@@ -7,20 +7,37 @@ from app.api.v1.endpoints.feedback import create_feedback
 from app.api.v1.endpoints.jobs import RECOMMENDED_SOURCES, _paginate_items
 from app.api.v1.router import api_router
 from app.models.job import Job
+from app.models.matching import MatchResult
 from app.schemas.feedback import FeedbackCreate
 from app.services.jobs_import.upsert import upsert_job
 
 
 class DummySession:
-    def __init__(self, job: Job | None = None) -> None:
+    def __init__(
+        self,
+        job: Job | None = None,
+        match_result: MatchResult | None = None,
+    ) -> None:
         self.job = job
-        self.added: list[Job] = []
+        self.match_result = match_result
+        self.added: list = []
+        self.commits = 0
 
-    def add(self, job: Job) -> None:
-        self.added.append(job)
+    def add(self, item) -> None:
+        self.added.append(item)
 
     def get(self, model, item_id: int):
-        return self.job
+        if model is Job:
+            return self.job
+        if model is MatchResult:
+            return self.match_result
+        return None
+
+    def commit(self) -> None:
+        self.commits += 1
+
+    def refresh(self, _item) -> None:
+        return None
 
 
 def job_detail(external_id: str = "job-1", title: str = "Backend Python") -> dict:
@@ -83,6 +100,56 @@ def test_feedback_rejects_unknown_job_with_404() -> None:
 
     assert exc_info.value.status_code == 404
     assert exc_info.value.detail == "Oferta no encontrada"
+
+
+def test_feedback_accepts_users_own_match_result() -> None:
+    job = Job(id=10, title="Backend", description="Python", source="tecnoempleo")
+    match_result = MatchResult(id=20, user_id=1, resume_id=3, job_id=10)
+    db = DummySession(job=job, match_result=match_result)
+
+    interaction = create_feedback(
+        payload=FeedbackCreate(
+            job_id=10,
+            match_result_id=20,
+            interaction_type="saved",
+        ),
+        db=db,
+        current_user=SimpleNamespace(id=1),
+    )
+
+    assert interaction.user_id == 1
+    assert interaction.match_result_id == 20
+    assert db.commits == 1
+
+
+@pytest.mark.parametrize(
+    "match_result",
+    [
+        None,
+        MatchResult(id=20, user_id=2, resume_id=3, job_id=10),
+        MatchResult(id=20, user_id=1, resume_id=3, job_id=11),
+    ],
+)
+def test_feedback_rejects_missing_foreign_or_mismatched_match_result(
+    match_result,
+) -> None:
+    job = Job(id=10, title="Backend", description="Python", source="tecnoempleo")
+    db = DummySession(job=job, match_result=match_result)
+
+    with pytest.raises(HTTPException) as exc_info:
+        create_feedback(
+            payload=FeedbackCreate(
+                job_id=10,
+                match_result_id=20,
+                interaction_type="saved",
+            ),
+            db=db,
+            current_user=SimpleNamespace(id=1),
+        )
+
+    assert exc_info.value.status_code == 404
+    assert db.added == []
+    assert db.commits == 0
 
 
 def test_public_api_no_longer_exposes_matching_router() -> None:
