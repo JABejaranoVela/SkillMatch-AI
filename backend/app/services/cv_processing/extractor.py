@@ -20,9 +20,19 @@ def extract_text_from_pdf(path: str) -> str:
     return "\n".join(parts)
 
 
+def extract_text_from_pdf_bytes(data: bytes, *, max_pages: int | None = None) -> str:
+    import fitz
+
+    with fitz.open(stream=data, filetype="pdf") as document:
+        if document.needs_pass:
+            raise ValueError("El PDF está protegido con contraseña")
+        if max_pages is not None and document.page_count > max_pages:
+            raise ValueError(f"El PDF supera el máximo de {max_pages} páginas")
+        return "\n".join(page.get_text("text") for page in document)
+
+
 def extract_text_from_docx(path: str) -> str:
     from docx import Document
 
     document = Document(path)
     return "\n".join(paragraph.text for paragraph in document.paragraphs if paragraph.text.strip())
-

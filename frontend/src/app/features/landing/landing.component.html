@@ -9,13 +9,18 @@
 
     <nav class="desktop-nav" aria-label="Navegación de la página de inicio">
       <a href="#como-funciona">Cómo funciona</a>
+      <a href="#demo-cv">Demo CV</a>
       <a href="#analiza-cv">Analiza tu CV</a>
       <a href="#ofertas-compatibles">Ofertas compatibles</a>
       <a href="#para-quien-es">Para quién es</a>
       <a routerLink="/login">Acceder</a>
     </nav>
 
-    <a class="header-cta" routerLink="/resumes">Subir mi CV</a>
+    @if (authenticated$ | async) {
+      <a class="header-cta" routerLink="/resumes">Subir mi CV</a>
+    } @else {
+      <a class="header-cta" href="#demo-cv">Subir mi CV</a>
+    }
 
     <button
       class="mobile-menu-button"
@@ -34,17 +39,22 @@
     @if (mobileMenuOpen) {
       <nav class="mobile-nav" aria-label="Navegación móvil">
         <a href="#como-funciona" (click)="closeMenu()">Cómo funciona</a>
+        <a href="#demo-cv" (click)="closeMenu()">Demo CV</a>
         <a href="#analiza-cv" (click)="closeMenu()">Analiza tu CV</a>
         <a href="#ofertas-compatibles" (click)="closeMenu()">Ofertas compatibles</a>
         <a href="#para-quien-es" (click)="closeMenu()">Para quién es</a>
         <a routerLink="/login" (click)="closeMenu()">Acceder</a>
-        <a class="mobile-primary" routerLink="/resumes" (click)="closeMenu()">Subir mi CV</a>
+        @if (authenticated$ | async) {
+          <a class="mobile-primary" routerLink="/resumes" (click)="closeMenu()">Subir mi CV</a>
+        } @else {
+          <a class="mobile-primary" href="#demo-cv" (click)="closeMenu()">Subir mi CV</a>
+        }
       </nav>
     }
   </header>
 
   <main id="inicio">
-    <section class="hero-section" id="analiza-cv" aria-labelledby="hero-title">
+    <section class="hero-section" aria-labelledby="hero-title">
       <div class="hero-copy">
         <span class="hero-eyebrow">
           <svg lucideSparkles aria-hidden="true"></svg>
@@ -63,7 +73,7 @@
               Subir mi CV
             </a>
           } @else {
-            <a class="primary-button" routerLink="/register">
+            <a class="primary-button" href="#demo-cv">
               <svg lucideCloudUpload aria-hidden="true"></svg>
               Subir mi CV
             </a>
@@ -139,40 +149,6 @@
       </div>
     </section>
 
-    <section
-      class="benefits-section"
-      id="ofertas-compatibles"
-      aria-labelledby="functions-title"
-    >
-      <div class="section-heading">
-        <span>Funciones principales</span>
-        <h2 id="functions-title">Todo lo necesario para orientar tu búsqueda</h2>
-      </div>
-
-      <div class="benefits-grid">
-        <article>
-          <span class="feature-icon"><svg lucideFileSearch></svg></span>
-          <h3>Análisis automático del CV</h3>
-          <p>Extraemos habilidades, formación, idiomas, experiencia y tecnologías relevantes.</p>
-        </article>
-        <article>
-          <span class="feature-icon"><svg lucideTarget></svg></span>
-          <h3>Ofertas compatibles</h3>
-          <p>Comparamos tu perfil con ofertas reales y priorizamos las más adecuadas.</p>
-        </article>
-        <article>
-          <span class="feature-icon"><svg lucideBarChart3></svg></span>
-          <h3>Ranking explicable</h3>
-          <p>Te mostramos qué coincide, qué falta y por qué una oferta encaja con tu perfil.</p>
-        </article>
-        <article>
-          <span class="feature-icon"><svg lucideBrainCircuit></svg></span>
-          <h3>IA semántica</h3>
-          <p>Comparamos el significado del CV y las ofertas, no solo palabras exactas.</p>
-        </article>
-      </div>
-    </section>
-
     <section class="workflow-section" id="como-funciona" aria-labelledby="workflow-title">
       <div class="section-heading">
         <span>Proceso sencillo</span>
@@ -207,6 +183,266 @@
           <span class="step-icon"><svg lucideBarChart3></svg></span>
           <h3>Recibes un ranking</h3>
           <p>Ordenamos las ofertas por compatibilidad y explicamos el resultado.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="demo-section" id="demo-cv" aria-labelledby="demo-title">
+      <div class="demo-heading">
+        <span>
+          <svg lucideSparkles aria-hidden="true"></svg>
+          Demo pública
+        </span>
+        <h2 id="demo-title">Sube tu CV y descubre qué perfil detecta SkillMatch AI</h2>
+        <p>
+          La demo analiza tu currículum y muestra habilidades detectadas. Para ver ofertas
+          compatibles y guardar recomendaciones, tendrás que crear una cuenta.
+        </p>
+      </div>
+
+      <div class="demo-shell">
+        <div class="demo-upload-column">
+          <div
+            class="demo-drop-zone"
+            [class.dragging]="demoDragActive"
+            [class.disabled]="demoState === 'loading'"
+            (dragover)="onDemoDragOver($event)"
+            (dragleave)="onDemoDragLeave($event)"
+            (drop)="onDemoDrop($event)"
+          >
+            <span class="demo-upload-icon" aria-hidden="true">
+              <svg lucideCloudUpload></svg>
+            </span>
+            <h3>Arrastra tu CV en PDF</h3>
+            <p>El archivo se analiza en memoria y no se guarda.</p>
+            <label class="demo-select-button" for="demo-file-input">
+              Seleccionar PDF
+            </label>
+            <input
+              #demoFileInput
+              id="demo-file-input"
+              class="visually-hidden"
+              type="file"
+              accept=".pdf,application/pdf"
+              [disabled]="demoState === 'loading'"
+              (change)="onDemoFileSelected($event)"
+            >
+            <small>PDF · Máximo 10 MB · Hasta 25 páginas</small>
+          </div>
+
+          @if (demoFile) {
+            <div class="demo-file-card">
+              <svg lucideFileText aria-hidden="true"></svg>
+              <span>
+                <strong>{{ demoFile.name }}</strong>
+                <small>{{ formatFileSize(demoFile.size) }}</small>
+              </span>
+              @if (demoState !== 'loading') {
+                <button type="button" aria-label="Quitar PDF seleccionado" (click)="resetDemo()">
+                  <svg lucideX aria-hidden="true"></svg>
+                </button>
+              }
+            </div>
+          }
+
+          @if (demoFile && demoState !== 'success') {
+            <button
+              class="demo-analyze-button"
+              type="button"
+              [disabled]="demoState === 'loading'"
+              (click)="analyzeDemoCv()"
+            >
+              @if (demoState === 'loading') {
+                <span class="demo-spinner" aria-hidden="true"></span>
+                Analizando tu CV…
+              } @else {
+                <svg lucideFileSearch aria-hidden="true"></svg>
+                Analizar mi CV
+              }
+            </button>
+          }
+
+          <div class="demo-privacy-note">
+            <svg lucideShieldCheck aria-hidden="true"></svg>
+            <span>
+              No creamos una cuenta, no guardamos el documento y no usamos su contenido
+              para buscar ofertas.
+            </span>
+          </div>
+        </div>
+
+        <div class="demo-result-column" aria-live="polite">
+          @if (demoState === 'idle' || demoState === 'selected') {
+            <div class="demo-placeholder">
+              <span aria-hidden="true"><svg lucideBrainCircuit></svg></span>
+              <h3>Tu análisis aparecerá aquí</h3>
+              <p>
+                Verás un perfil profesional aproximado, habilidades principales,
+                formación, idiomas y experiencia detectada.
+              </p>
+            </div>
+          }
+
+          @if (demoState === 'loading') {
+            <div class="demo-loading" role="status">
+              <span class="demo-loader-visual" aria-hidden="true">
+                <svg lucideFileSearch></svg>
+              </span>
+              <h3>Analizando tu CV…</h3>
+              <p>Estamos extrayendo la información profesional más relevante.</p>
+              <div class="demo-progress" aria-hidden="true"><span></span></div>
+            </div>
+          }
+
+          @if (demoState === 'error') {
+            <div class="demo-error" role="alert">
+              <span aria-hidden="true"><svg lucideX></svg></span>
+              <div>
+                <h3>No se ha podido completar el análisis</h3>
+                <p>{{ demoError }}</p>
+              </div>
+            </div>
+          }
+
+          @if (demoResult) {
+            <div class="demo-results">
+              <div class="demo-result-header">
+                <span><svg lucideCircleCheck aria-hidden="true"></svg> Análisis completado</span>
+                <button type="button" (click)="resetDemo()">Subir otro CV</button>
+              </div>
+
+              <div class="demo-result-grid">
+                <article class="demo-result-card profile-card">
+                  <span class="result-card-icon"><svg lucideUserRound></svg></span>
+                  <div>
+                    <small>Perfil detectado</small>
+                    <h3>{{ demoResult.profile_type }}</h3>
+                    <p>{{ demoResult.summary }}</p>
+                  </div>
+                </article>
+
+                <article class="demo-result-card">
+                  <span class="result-card-icon"><svg lucideSparkles></svg></span>
+                  <div>
+                    <small>Habilidades principales</small>
+                    @if (demoResult.skills.length) {
+                      <div class="demo-skill-list">
+                        @for (skill of demoResult.skills; track skill) {
+                          <span>{{ skill }}</span>
+                        }
+                      </div>
+                    } @else {
+                      <p class="demo-empty-field">No se han detectado habilidades concretas.</p>
+                    }
+                  </div>
+                </article>
+
+                <article class="demo-result-card">
+                  <span class="result-card-icon"><svg lucideGraduationCap></svg></span>
+                  <div>
+                    <small>Formación</small>
+                    @if (demoResult.education.length) {
+                      <ul>
+                        @for (education of demoResult.education; track education) {
+                          <li>{{ education }}</li>
+                        }
+                      </ul>
+                    } @else {
+                      <p class="demo-empty-field">No se ha detectado formación específica.</p>
+                    }
+                  </div>
+                </article>
+
+                <article class="demo-result-card">
+                  <span class="result-card-icon"><svg lucideLanguages></svg></span>
+                  <div>
+                    <small>Idiomas</small>
+                    @if (demoResult.languages.length) {
+                      <div class="demo-language-list">
+                        @for (language of demoResult.languages; track language) {
+                          <span>{{ language }}</span>
+                        }
+                      </div>
+                    } @else {
+                      <p class="demo-empty-field">No se han detectado idiomas.</p>
+                    }
+                  </div>
+                </article>
+
+                <article class="demo-result-card experience-card">
+                  <span class="result-card-icon"><svg lucideBriefcaseBusiness></svg></span>
+                  <div>
+                    <small>Experiencia</small>
+                    <p>
+                      {{ demoResult.experience_summary || 'No se ha podido cuantificar la experiencia.' }}
+                    </p>
+                  </div>
+                </article>
+              </div>
+
+              <div class="demo-result-cta">
+                <div>
+                  <strong>¿Quieres descubrir tus ofertas compatibles?</strong>
+                  <span>El ranking completo está disponible al crear tu cuenta.</span>
+                </div>
+                @if (authenticated$ | async) {
+                  <a routerLink="/resumes">
+                    Continuar con mi CV
+                    <svg lucideArrowRight aria-hidden="true"></svg>
+                  </a>
+                } @else {
+                  <a routerLink="/register">
+                    Crear cuenta para ver ofertas
+                    <svg lucideArrowRight aria-hidden="true"></svg>
+                  </a>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </section>
+
+    <section class="benefits-section" id="analiza-cv" aria-labelledby="analysis-title">
+      <div class="section-heading">
+        <span>Análisis profesional</span>
+        <h2 id="analysis-title">Entiende qué información profesional contiene tu CV</h2>
+      </div>
+
+      <div class="benefits-grid benefits-grid-pair">
+        <article>
+          <span class="feature-icon"><svg lucideFileSearch></svg></span>
+          <h3>Análisis automático del CV</h3>
+          <p>Extraemos habilidades, formación, idiomas, experiencia y tecnologías relevantes.</p>
+        </article>
+        <article>
+          <span class="feature-icon"><svg lucideBrainCircuit></svg></span>
+          <h3>IA semántica</h3>
+          <p>Comparamos el significado del CV y las ofertas, no solo palabras exactas.</p>
+        </article>
+      </div>
+    </section>
+
+    <section
+      class="benefits-section offers-benefits-section"
+      id="ofertas-compatibles"
+      aria-labelledby="offers-title"
+    >
+      <div class="section-heading">
+        <span>Recomendaciones relevantes</span>
+        <h2 id="offers-title">Encuentra ofertas compatibles y entiende cada resultado</h2>
+      </div>
+
+      <div class="benefits-grid benefits-grid-pair">
+        <article>
+          <span class="feature-icon"><svg lucideTarget></svg></span>
+          <h3>Ofertas compatibles</h3>
+          <p>Comparamos tu perfil con ofertas reales y priorizamos las más adecuadas.</p>
+        </article>
+        <article>
+          <span class="feature-icon"><svg lucideBarChart3></svg></span>
+          <h3>Ranking explicable</h3>
+          <p>Te mostramos qué coincide, qué falta y por qué una oferta encaja con tu perfil.</p>
         </article>
       </div>
     </section>
@@ -265,7 +501,7 @@
       @if (authenticated$ | async) {
         <a routerLink="/resumes">Analizar mi CV <svg lucideArrowRight></svg></a>
       } @else {
-        <a routerLink="/register">Analizar mi CV <svg lucideArrowRight></svg></a>
+        <a href="#demo-cv">Analizar mi CV <svg lucideArrowRight></svg></a>
       }
     </section>
   </main>
