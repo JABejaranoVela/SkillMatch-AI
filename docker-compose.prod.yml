@@ -1,0 +1,140 @@
+x-backend-env: &backend-env
+  ENVIRONMENT: production
+  DATABASE_URL: ${DATABASE_URL:-}
+  SECRET_KEY: ${SECRET_KEY:-}
+  BACKEND_CORS_ORIGINS: '${BACKEND_CORS_ORIGINS:-[]}'
+  TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-false}
+  SESSION_DAYS: ${SESSION_DAYS:-30}
+  SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-skillmatch_session}
+  COOKIE_SECURE: ${COOKIE_SECURE:-true}
+  COOKIE_SAMESITE: ${COOKIE_SAMESITE:-lax}
+  FRONTEND_URL: ${FRONTEND_URL:-}
+  EMAIL_PROVIDER: ${EMAIL_PROVIDER:-brevo}
+  EMAIL_FROM: ${EMAIL_FROM:-}
+  BREVO_API_KEY: ${BREVO_API_KEY:-}
+  BREVO_API_URL: ${BREVO_API_URL:-https://api.brevo.com/v3/smtp/email}
+  EMAIL_PAYLOAD_ENCRYPTION_KEY: ${EMAIL_PAYLOAD_ENCRYPTION_KEY:-}
+  EMAIL_WORKER_POLL_SECONDS: ${EMAIL_WORKER_POLL_SECONDS:-2}
+  EMAIL_WORKER_BATCH_SIZE: ${EMAIL_WORKER_BATCH_SIZE:-10}
+  EMAIL_WORKER_STALE_MINUTES: ${EMAIL_WORKER_STALE_MINUTES:-15}
+  EMAIL_MAX_ATTEMPTS: ${EMAIL_MAX_ATTEMPTS:-6}
+  EMAIL_HTTP_TIMEOUT_SECONDS: ${EMAIL_HTTP_TIMEOUT_SECONDS:-15}
+  PASSWORD_RESET_TTL_MINUTES: ${PASSWORD_RESET_TTL_MINUTES:-60}
+  PASSWORD_RESET_MAX_REQUESTS_PER_HOUR: ${PASSWORD_RESET_MAX_REQUESTS_PER_HOUR:-5}
+  LOGIN_RATE_LIMIT_ATTEMPTS: ${LOGIN_RATE_LIMIT_ATTEMPTS:-10}
+  LOGIN_RATE_LIMIT_WINDOW_MINUTES: ${LOGIN_RATE_LIMIT_WINDOW_MINUTES:-15}
+  REGISTER_RATE_LIMIT_PER_HOUR: ${REGISTER_RATE_LIMIT_PER_HOUR:-5}
+  RESEND_RATE_LIMIT_PER_HOUR: ${RESEND_RATE_LIMIT_PER_HOUR:-5}
+  FORGOT_PASSWORD_IP_RATE_LIMIT_PER_HOUR: ${FORGOT_PASSWORD_IP_RATE_LIMIT_PER_HOUR:-20}
+  RESET_PASSWORD_RATE_LIMIT_PER_HOUR: ${RESET_PASSWORD_RATE_LIMIT_PER_HOUR:-10}
+  CHANGE_PASSWORD_RATE_LIMIT_PER_HOUR: ${CHANGE_PASSWORD_RATE_LIMIT_PER_HOUR:-5}
+  PUBLIC_DEMO_RATE_LIMIT_PER_HOUR: ${PUBLIC_DEMO_RATE_LIMIT_PER_HOUR:-5}
+  PUBLIC_DEMO_MAX_PAGES: ${PUBLIC_DEMO_MAX_PAGES:-25}
+  PUBLIC_DEMO_MIN_TEXT_CHARS: ${PUBLIC_DEMO_MIN_TEXT_CHARS:-50}
+  PUBLIC_DEMO_SKILLS_LIMIT: ${PUBLIC_DEMO_SKILLS_LIMIT:-12}
+  JOB_SEARCH_RATE_LIMIT_PER_HOUR: ${JOB_SEARCH_RATE_LIMIT_PER_HOUR:-6}
+  JOB_SEARCH_STALE_MINUTES: ${JOB_SEARCH_STALE_MINUTES:-30}
+  CLEANUP_SESSION_RETENTION_DAYS: ${CLEANUP_SESSION_RETENTION_DAYS:-30}
+  CLEANUP_TOKEN_RETENTION_DAYS: ${CLEANUP_TOKEN_RETENTION_DAYS:-7}
+  CLEANUP_OUTBOX_RETENTION_DAYS: ${CLEANUP_OUTBOX_RETENTION_DAYS:-30}
+  UPLOAD_DIR: ${UPLOAD_DIR:-storage/resumes}
+  SKILLS_DICTIONARY_PATH: ${SKILLS_DICTIONARY_PATH:-data/skills/skills.es.json}
+  MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-10}
+  RESUME_MAX_PAGES: ${RESUME_MAX_PAGES:-25}
+  RESUME_MIN_TEXT_CHARS: ${RESUME_MIN_TEXT_CHARS:-50}
+  EMBEDDINGS_ENABLED: ${EMBEDDINGS_ENABLED:-true}
+  EMBEDDINGS_MODEL_NAME: ${EMBEDDINGS_MODEL_NAME:-sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2}
+  SKILL_NER_ENABLED: ${SKILL_NER_ENABLED:-false}
+  SKILL_NER_MODEL_NAME: ${SKILL_NER_MODEL_NAME:-urchade/gliner_medium-v2.1}
+  TECNOEMPLEO_BASE_URL: ${TECNOEMPLEO_BASE_URL:-https://www.tecnoempleo.com}
+  INFOJOBS_API_URL: ${INFOJOBS_API_URL:-https://api.infojobs.net/api/1/offer}
+  INFOJOBS_CLIENT_ID: ${INFOJOBS_CLIENT_ID:-}
+  INFOJOBS_CLIENT_SECRET: ${INFOJOBS_CLIENT_SECRET:-}
+  PROFILE_JOB_IMPORT_LIMIT: ${PROFILE_JOB_IMPORT_LIMIT:-12}
+  RECOMMENDATIONS_LIMIT: ${RECOMMENDATIONS_LIMIT:-50}
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-skillmatch}
+      POSTGRES_USER: ${POSTGRES_USER:-skillmatch}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - skillmatch_internal
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.prod
+    restart: unless-stopped
+    environment: *backend-env
+    volumes:
+      - resume_uploads_prod:/app/storage/resumes
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=5)\"",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - skillmatch_internal
+
+  email-worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.prod
+    command: ["python", "-m", "app.workers.email_worker"]
+    restart: unless-stopped
+    environment: *backend-env
+    volumes:
+      - resume_uploads_prod:/app/storage/resumes
+    depends_on:
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - skillmatch_internal
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile.prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - skillmatch_internal
+
+volumes:
+  postgres_data_prod:
+  resume_uploads_prod:
+
+networks:
+  skillmatch_internal:
+    driver: bridge
