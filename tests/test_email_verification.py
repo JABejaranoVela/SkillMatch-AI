@@ -19,6 +19,7 @@ from app.services.auth.account_tokens import (
     utc_now,
 )
 from app.services.email.crypto import EmailPayloadCipher
+from app.services.email import templates
 from app.services.email.templates import build_verification_url
 
 
@@ -144,6 +145,20 @@ def test_build_verification_url_contains_raw_token_only_for_delivery() -> None:
     url = build_verification_url("raw-token")
 
     assert url.endswith("/verify-email?token=raw-token")
+
+
+def test_email_links_use_frontend_url(monkeypatch) -> None:
+    monkeypatch.setattr(templates.settings, "FRONTEND_URL", "https://front.skillmatch.invalid")
+
+    verification_url = templates.build_verification_url("verify-token")
+    reset_url = templates.build_password_reset_url("reset-token")
+
+    assert verification_url == (
+        "https://front.skillmatch.invalid/verify-email?token=verify-token"
+    )
+    assert reset_url == (
+        "https://front.skillmatch.invalid/reset-password?token=reset-token"
+    )
 
 
 def test_register_creates_pending_unverified_user() -> None:

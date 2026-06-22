@@ -12,10 +12,19 @@ logger = logging.getLogger(__name__)
 
 
 def create_app() -> FastAPI:
+    openapi_url = (
+        None
+        if settings.ENVIRONMENT == "production"
+        else f"{settings.API_V1_PREFIX}/openapi.json"
+    )
+    docs_url = None if settings.ENVIRONMENT == "production" else "/docs"
+    redoc_url = None if settings.ENVIRONMENT == "production" else "/redoc"
     app = FastAPI(
         title=settings.PROJECT_NAME,
         version=settings.PROJECT_VERSION,
-        openapi_url=f"{settings.API_V1_PREFIX}/openapi.json",
+        openapi_url=openapi_url,
+        docs_url=docs_url,
+        redoc_url=redoc_url,
     )
 
     app.add_middleware(

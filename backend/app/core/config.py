@@ -92,16 +92,30 @@ class Settings(BaseSettings):
         if self.EMAIL_MAX_ATTEMPTS > 6:
             raise ValueError("EMAIL_MAX_ATTEMPTS no puede superar el intento inicial y 5 reintentos")
         if self.ENVIRONMENT == "production":
-            if self.SECRET_KEY == "change-me-in-production" or len(self.SECRET_KEY) < 32:
+            if (
+                self.SECRET_KEY == "change-me-in-production"
+                or len(self.SECRET_KEY) < 32
+                or _contains_placeholder(self.SECRET_KEY)
+            ):
                 raise ValueError("SECRET_KEY debe ser segura en produccion")
-            if self.DATABASE_URL == (
-                "postgresql+psycopg://skillmatch:skillmatch@localhost:5432/skillmatch"
-            ) or "skillmatch:skillmatch@" in self.DATABASE_URL:
+            if (
+                self.DATABASE_URL
+                == "postgresql+psycopg://skillmatch:skillmatch@localhost:5432/skillmatch"
+                or "skillmatch:skillmatch@" in self.DATABASE_URL
+                or _contains_placeholder(self.DATABASE_URL)
+            ):
                 raise ValueError("DATABASE_URL no puede usar credenciales predeterminadas")
             if not self.DATABASE_URL.startswith(
                 ("postgresql://", "postgresql+psycopg://")
             ):
                 raise ValueError("DATABASE_URL debe usar PostgreSQL en produccion")
+            parsed_frontend = urlsplit(frontend_origin)
+            if parsed_frontend.scheme != "https" or parsed_frontend.hostname in {
+                "localhost",
+                "127.0.0.1",
+                "::1",
+            }:
+                raise ValueError("FRONTEND_URL debe ser HTTPS y no local en produccion")
             if not self.COOKIE_SECURE:
                 raise ValueError("COOKIE_SECURE debe estar activo en produccion")
             if self.COOKIE_SAMESITE != "lax":
@@ -124,7 +138,9 @@ class Settings(BaseSettings):
                 if self.BREVO_API_KEY
                 else ""
             )
-            if self.EMAIL_PROVIDER == "brevo" and not brevo_api_key:
+            if self.EMAIL_PROVIDER == "brevo" and (
+                not brevo_api_key or _contains_placeholder(brevo_api_key)
+            ):
                 raise ValueError("BREVO_API_KEY es obligatoria con EMAIL_PROVIDER=brevo")
             if self.EMAIL_PROVIDER != "brevo":
                 raise ValueError("EMAIL_PROVIDER debe ser brevo en produccion")
@@ -133,11 +149,26 @@ class Settings(BaseSettings):
                 not encryption_key
                 or encryption_key
                 == "7NIkUe_WSF1YHO6QkZNmJjj03kT7S6KZETPBeAaT6cQ="
+                or _contains_placeholder(encryption_key)
             ):
                 raise ValueError(
                     "EMAIL_PAYLOAD_ENCRYPTION_KEY debe ser unica en produccion"
                 )
         return self
+
+
+def _contains_placeholder(value: str) -> bool:
+    normalized = value.strip().lower()
+    return any(
+        marker in normalized
+        for marker in (
+            "replace_with",
+            "change_me",
+            "change-me",
+            "changeme",
+            "placeholder",
+        )
+    )
 
 
 def _normalize_origin(value: str) -> str:
