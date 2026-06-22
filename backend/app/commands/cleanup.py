@@ -26,6 +26,15 @@ def build_parser() -> argparse.ArgumentParser:
             "No files are deleted."
         ),
     )
+    parser.add_argument(
+        "--job-search-timeout-minutes",
+        type=_positive_int,
+        default=None,
+        help=(
+            "Mark active job searches older than this timeout as failed. "
+            "Offers, results and historical tasks are not deleted."
+        ),
+    )
     return parser
 
 
@@ -39,6 +48,7 @@ def main() -> None:
             token_retention_days=args.token_retention_days,
             outbox_retention_days=args.outbox_retention_days,
             resume_processing_timeout_minutes=args.resume_processing_timeout_minutes,
+            job_search_timeout_minutes=args.job_search_timeout_minutes,
         )
     print(json.dumps(result.to_dict(), sort_keys=True))
 

@@ -12,11 +12,15 @@ from app.models.auth import (
     EmailOutbox,
     EmailOutboxStatus,
 )
+from app.models.job import JobSearchTask
 from app.models.resume import Resume, ResumeStatus
 from app.services.email.outbox import (
     cancel_legacy_messages,
     recover_abandoned_messages,
 )
+
+ACTIVE_JOB_SEARCH_STATUSES = ("pending", "processing", "searching", "importing", "ranking")
+SAFE_JOB_SEARCH_ERROR = "No se ha podido completar la búsqueda de ofertas en este momento."
 
 
 @dataclass(frozen=True)
@@ -29,6 +33,7 @@ class CleanupResult:
     legacy_outbox_cancelled: int
     abandoned_outbox_recovered: int
     abandoned_resumes_failed: int
+    abandoned_job_searches_failed: int
 
     def to_dict(self) -> dict[str, bool | int]:
         return asdict(self)
@@ -46,6 +51,7 @@ def cleanup_temporary_data(
     token_retention_days: int | None = None,
     outbox_retention_days: int | None = None,
     resume_processing_timeout_minutes: int = 60,
+    job_search_timeout_minutes: int | None = None,
     now: datetime | None = None,
 ) -> CleanupResult:
     current_time = now or utc_now()
@@ -108,6 +114,14 @@ def cleanup_temporary_data(
         (Resume.status == ResumeStatus.PROCESSING)
         & (Resume.created_at <= abandoned_resume_cutoff)
     )
+    abandoned_job_search_cutoff = (
+        current_time
+        - timedelta(minutes=job_search_timeout_minutes or settings.JOB_SEARCH_STALE_MINUTES)
+    ).replace(tzinfo=None)
+    abandoned_job_search_filter = (
+        JobSearchTask.status.in_(ACTIVE_JOB_SEARCH_STATUSES)
+        & (JobSearchTask.updated_at <= abandoned_job_search_cutoff)
+    )
 
     if dry_run:
         return CleanupResult(
@@ -119,6 +133,11 @@ def cleanup_temporary_data(
             legacy_outbox_cancelled=_count(db, EmailOutbox, legacy_filter),
             abandoned_outbox_recovered=_count(db, EmailOutbox, abandoned_filter),
             abandoned_resumes_failed=_count(db, Resume, abandoned_resume_filter),
+            abandoned_job_searches_failed=_count(
+                db,
+                JobSearchTask,
+                abandoned_job_search_filter,
+            ),
         )
 
     legacy_cancelled = cancel_legacy_messages(db, now=current_time)
@@ -126,6 +145,11 @@ def cleanup_temporary_data(
     abandoned_resumes_failed = _fail_abandoned_resumes(
         db,
         abandoned_resume_filter,
+        current_time.replace(tzinfo=None),
+    )
+    abandoned_job_searches_failed = _fail_abandoned_job_searches(
+        db,
+        abandoned_job_search_filter,
         current_time.replace(tzinfo=None),
     )
     sessions = _delete(db, AuthSession, session_filter)
@@ -142,6 +166,7 @@ def cleanup_temporary_data(
         legacy_outbox_cancelled=legacy_cancelled,
         abandoned_outbox_recovered=abandoned_recovered,
         abandoned_resumes_failed=abandoned_resumes_failed,
+        abandoned_job_searches_failed=abandoned_job_searches_failed,
     )
 
 
@@ -166,6 +191,24 @@ def _fail_abandoned_resumes(
         .values(
             status=ResumeStatus.FAILED,
             processed_at=failed_at,
+        )
+    )
+    return int(result.rowcount or 0)
+
+
+def _fail_abandoned_job_searches(
+    db: Session,
+    condition,
+    failed_at: datetime,
+) -> int:
+    result = db.execute(
+        update(JobSearchTask)
+        .where(condition)
+        .values(
+            status="failed",
+            message=SAFE_JOB_SEARCH_ERROR,
+            error=SAFE_JOB_SEARCH_ERROR,
+            updated_at=failed_at,
         )
     )
     return int(result.rowcount or 0)

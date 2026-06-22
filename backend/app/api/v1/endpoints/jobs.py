@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from datetime import datetime
+import logging
 from typing import Annotated, TypeVar
 from uuid import uuid4
 
@@ -15,6 +16,7 @@ from app.models.matching import MatchResult
 from app.models.resume import Resume
 from app.models.user import User
 from app.schemas.job import JobCreate, JobRead, JobRecommendationPage, JobSearchTaskRead
+from app.services.auth.rate_limits import consume_rate_limit
 from app.services.embeddings.semantic import ensure_job_embedding, ensure_profile_embedding
 from app.services.jobs_import.importer import import_jobs_from_text
 from app.services.jobs_import.infojobs import sync_infojobs_jobs
@@ -25,7 +27,12 @@ from app.services.matching.rules import calculate_hybrid_match
 router = APIRouter()
 
 RECOMMENDED_SOURCES = ("tecnoempleo", "infojobs")
+ACTIVE_JOB_SEARCH_STATUSES = ("pending", "processing", "searching", "importing", "ranking")
+ACTIVE_JOB_SEARCH_MESSAGE = "Ya hay una búsqueda de ofertas en curso."
+JOB_SEARCH_RATE_LIMIT_MESSAGE = "Has alcanzado el límite temporal de búsquedas de ofertas."
+SAFE_JOB_SEARCH_ERROR = "No se ha podido completar la búsqueda de ofertas en este momento."
 T = TypeVar("T")
+logger = logging.getLogger(__name__)
 
 
 @router.get("", response_model=list[JobRead])
@@ -77,6 +84,25 @@ def start_profile_job_search(
     limit: int | None = None,
 ) -> JobSearchTask:
     _get_active_profile(db, current_user.id)
+    if _get_active_search_task(db, current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=ACTIVE_JOB_SEARCH_MESSAGE,
+        )
+
+    rate_limit = consume_rate_limit(
+        action="job_search_profile",
+        identifiers=[str(current_user.id)],
+        limit=settings.JOB_SEARCH_RATE_LIMIT_PER_HOUR,
+        window_seconds=3600,
+    )
+    if not rate_limit.allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=JOB_SEARCH_RATE_LIMIT_MESSAGE,
+            headers={"Retry-After": str(rate_limit.retry_after)},
+        )
+
     task = JobSearchTask(
         task_id=uuid4().hex,
         user_id=current_user.id,
@@ -221,6 +247,17 @@ def _get_active_resume(db: Session, user_id: int) -> Resume:
     return resume
 
 
+def _get_active_search_task(db: Session, user_id: int) -> JobSearchTask | None:
+    return db.scalar(
+        select(JobSearchTask)
+        .where(
+            JobSearchTask.user_id == user_id,
+            JobSearchTask.status.in_(ACTIVE_JOB_SEARCH_STATUSES),
+        )
+        .order_by(JobSearchTask.updated_at.desc(), JobSearchTask.id.desc())
+    )
+
+
 def _latest_recommendable_jobs(db: Session) -> list[Job]:
     return list(
         db.scalars(
@@ -323,19 +360,23 @@ def _run_profile_job_search(task_id: str, user_id: int, limit: int | None = None
             task_id,
             status="completed",
             message="Búsqueda terminada",
-            sources={"items": source_results, "search_terms": search_terms},
+            sources={"items": source_results},
             imported=imported,
             updated=updated,
             skipped=skipped,
         )
-    except Exception as exc:
+    except Exception:
+        logger.exception(
+            "Job search task failed",
+            extra={"task_id": task_id, "user_id": user_id},
+        )
         db.rollback()
         _update_search_task(
             db,
             task_id,
             status="failed",
-            message="No se pudo completar la búsqueda",
-            error=str(exc),
+            message=SAFE_JOB_SEARCH_ERROR,
+            error=SAFE_JOB_SEARCH_ERROR,
         )
     finally:
         db.close()

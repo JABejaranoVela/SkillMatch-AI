@@ -52,6 +52,8 @@ class Settings(BaseSettings):
     PUBLIC_DEMO_MAX_PAGES: int = Field(default=25, ge=1, le=100)
     PUBLIC_DEMO_MIN_TEXT_CHARS: int = Field(default=50, ge=1, le=1000)
     PUBLIC_DEMO_SKILLS_LIMIT: int = Field(default=12, ge=1, le=50)
+    JOB_SEARCH_RATE_LIMIT_PER_HOUR: int = Field(default=6, ge=1, le=100)
+    JOB_SEARCH_STALE_MINUTES: int = Field(default=30, ge=1, le=1440)
     CLEANUP_SESSION_RETENTION_DAYS: int = Field(default=30, ge=1, le=3650)
     CLEANUP_TOKEN_RETENTION_DAYS: int = Field(default=7, ge=1, le=3650)
     CLEANUP_OUTBOX_RETENTION_DAYS: int = Field(default=30, ge=1, le=3650)
