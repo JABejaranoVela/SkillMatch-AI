@@ -58,8 +58,10 @@ class Settings(BaseSettings):
 
     UPLOAD_DIR: str = "storage/resumes"
     SKILLS_DICTIONARY_PATH: str = "data/skills/skills.es.json"
-    MAX_UPLOAD_SIZE_MB: int = 10
-    ALLOWED_RESUME_EXTENSIONS: set[str] = {".pdf", ".docx"}
+    MAX_UPLOAD_SIZE_MB: int = Field(default=10, ge=1, le=50)
+    RESUME_MAX_PAGES: int = Field(default=25, ge=1, le=100)
+    RESUME_MIN_TEXT_CHARS: int = Field(default=50, ge=1, le=1000)
+    ALLOWED_RESUME_EXTENSIONS: set[str] = {".pdf"}
     MATCHING_ALGORITHM_VERSION: str = "hybrid-rules-semantic-v1"
     EMBEDDINGS_MODEL_NAME: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     EMBEDDINGS_ENABLED: bool = True

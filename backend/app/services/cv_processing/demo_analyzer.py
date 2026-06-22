@@ -1,6 +1,6 @@
 from app.core.config import settings
 from app.schemas.public import PublicDemoAnalysisRead
-from app.services.cv_processing.extractor import extract_text_from_pdf_bytes
+from app.services.cv_processing.extractor import CvValidationError, extract_text_from_pdf_bytes
 from app.services.cv_processing.profile_builder import build_profile_from_text
 from app.services.nlp.normalization import normalize_text
 
@@ -15,7 +15,7 @@ def analyze_demo_pdf(data: bytes) -> PublicDemoAnalysisRead:
             data,
             max_pages=settings.PUBLIC_DEMO_MAX_PAGES,
         )
-    except ValueError as exc:
+    except CvValidationError as exc:
         raise DemoCvValidationError(str(exc)) from exc
     except Exception as exc:
         raise DemoCvValidationError("El archivo no es un PDF válido o no se puede leer") from exc

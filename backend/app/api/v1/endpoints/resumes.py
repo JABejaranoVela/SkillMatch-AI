@@ -9,7 +9,7 @@ from app.db.session import get_db
 from app.models.resume import Resume
 from app.models.user import User
 from app.schemas.resume import ProfileRead, ResumeRead
-from app.services.cv_processing.processor import process_resume
+from app.services.cv_processing.processor import ResumeProcessingError, process_resume
 from app.services.cv_processing.storage import save_resume_file
 
 router = APIRouter()
@@ -22,16 +22,12 @@ def upload_resume(
     current_user: Annotated[User, Depends(get_active_user)],
 ) -> Resume:
     stored = save_resume_file(file, current_user.id)
-    db.query(Resume).filter(Resume.user_id == current_user.id, Resume.is_active.is_(True)).update(
-        {"is_active": False},
-        synchronize_session=False,
-    )
     resume = Resume(
         user_id=current_user.id,
         filename=stored.original_filename,
         file_path=stored.path,
         file_type=stored.extension,
-        is_active=True,
+        is_active=False,
     )
     db.add(resume)
     db.commit()
@@ -116,4 +112,7 @@ def process_resume_endpoint(
     resume = db.get(Resume, resume_id)
     if not resume or resume.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="CV no encontrado")
-    return process_resume(db, resume)
+    try:
+        return process_resume(db, resume)
+    except ResumeProcessingError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.public_message) from exc
