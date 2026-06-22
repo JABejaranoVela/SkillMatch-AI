@@ -29,6 +29,17 @@
       </svg>
       <h2>Arrastra tu CV aquí o selecciónalo desde tu equipo</h2>
       <p>Formato admitido: PDF</p>
+      <label class="consent-check">
+        <input
+          type="checkbox"
+          [checked]="consentAccepted"
+          [disabled]="isBusy"
+          (change)="consentAccepted = $any($event.target).checked"
+        >
+        <span>
+          He leído y acepto que SkillMatch AI analice mi CV para extraer información profesional y generar recomendaciones de ofertas compatibles. Confirmo que el CV es mío y entiendo que podré eliminarlo desde la aplicación.
+        </span>
+      </label>
       <label class="primary-action">
         <input type="file" accept=".pdf,application/pdf" (change)="onFileSelected($event)" [disabled]="isBusy">
         <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -83,6 +94,9 @@
         @if (activeResume.status === 'processed' && !isProcessing) {
           <button type="button" class="ghost-button" (click)="process(activeResume.id)">Reanalizar CV</button>
         }
+        <button type="button" class="danger-button" (click)="deleteActiveResume()" [disabled]="isBusy">
+          Eliminar CV
+        </button>
       </div>
     </section>
   }

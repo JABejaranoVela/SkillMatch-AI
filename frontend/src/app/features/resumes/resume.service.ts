@@ -70,6 +70,10 @@ export class ResumeService {
     );
   }
 
+  delete(resumeId: number): Observable<void> {
+    return this.http.delete<void>(`${this.api.baseUrl}/resumes/${resumeId}`);
+  }
+
   getActiveProfile(): Observable<ProfessionalProfile> {
     return this.http.get<ProfessionalProfile>(`${this.api.baseUrl}/resumes/active/profile`);
   }

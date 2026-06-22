@@ -28,6 +28,8 @@ export class ResumesComponent implements OnInit {
   isDragging = false;
   isUploading = false;
   isProcessing = false;
+  isDeleting = false;
+  consentAccepted = false;
   showAllSkills = false;
   readonly skeletonRows = Array.from({ length: 3 });
 
@@ -50,7 +52,7 @@ export class ResumesComponent implements OnInit {
   }
 
   get isBusy(): boolean {
-    return this.isUploading || this.isProcessing;
+    return this.isUploading || this.isProcessing || this.isDeleting;
   }
 
   get loadingMessage(): string {
@@ -59,6 +61,9 @@ export class ResumesComponent implements OnInit {
     }
     if (this.isProcessing) {
       return 'Analizando CV y detectando aptitudes...';
+    }
+    if (this.isDeleting) {
+      return 'Eliminando CV...';
     }
     return '';
   }
@@ -112,6 +117,42 @@ export class ResumesComponent implements OnInit {
         this.statusMessage = 'No se pudo analizar el CV.';
         this.errorMessage = this.extractError(error);
         this.isProcessing = false;
+      }
+    });
+  }
+
+  deleteActiveResume(): void {
+    const resume = this.activeResume;
+    if (!resume || this.isBusy) {
+      return;
+    }
+    const confirmed = window.confirm(
+      '¿Seguro que quieres eliminar este CV? Se eliminarán el archivo y los datos derivados del análisis.'
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    this.isDeleting = true;
+    this.statusMessage = 'Eliminando CV...';
+    this.errorMessage = '';
+    this.resumeService.delete(resume.id).subscribe({
+      next: () => {
+        this.jobService.clearRecommendedCache();
+        this.resumes = [];
+        this.profile = null;
+        this.selectedFile = null;
+        this.uploadedFileSize = null;
+        this.showAllSkills = false;
+        this.statusMessage = 'CV eliminado correctamente.';
+        this.errorMessage = '';
+        this.isDeleting = false;
+        this.loadResumes();
+      },
+      error: (error) => {
+        this.statusMessage = 'No se pudo eliminar el CV.';
+        this.errorMessage = this.extractError(error);
+        this.isDeleting = false;
       }
     });
   }
@@ -257,6 +298,12 @@ export class ResumesComponent implements OnInit {
   }
 
   private uploadSelectedFile(file: File): void {
+    if (!this.consentAccepted) {
+      this.statusMessage = 'Antes de subir tu CV necesitamos tu confirmación.';
+      this.errorMessage = 'Acepta el aviso de análisis y confirma que el CV es tuyo.';
+      return;
+    }
+
     if (!file.name.toLowerCase().endsWith('.pdf')) {
       this.statusMessage = 'Selecciona un archivo PDF.';
       this.errorMessage = 'En esta pantalla solo se admite formato PDF.';
