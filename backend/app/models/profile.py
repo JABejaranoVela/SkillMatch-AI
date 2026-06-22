@@ -10,8 +10,8 @@ from app.db.base import Base
 class ProfessionalProfile(Base):
     __tablename__ = "professional_profiles"
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    resume_id: Mapped[int] = mapped_column(ForeignKey("resumes.id"), unique=True, index=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    resume_id: Mapped[int] = mapped_column(ForeignKey("resumes.id"), unique=True)
     profile_type: Mapped[str | None] = mapped_column(String(150), nullable=True)
     summary: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     experience_years: Mapped[float | None] = mapped_column(nullable=True)
@@ -29,7 +29,7 @@ class ProfessionalProfile(Base):
 class Skill(Base):
     __tablename__ = "skills"
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(150), unique=True)
     normalized_name: Mapped[str] = mapped_column(String(150), unique=True, index=True)
     category: Mapped[str] = mapped_column(String(100))

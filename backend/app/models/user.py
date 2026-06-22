@@ -3,7 +3,7 @@ from enum import Enum as PythonEnum
 from enum import StrEnum
 from typing import TypeVar
 
-from sqlalchemy import DateTime, Enum, String
+from sqlalchemy import DateTime, Enum, Index, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -30,7 +30,7 @@ def enum_values(enum_class: type[EnumType]) -> list[str]:
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     hashed_password: Mapped[str] = mapped_column(String(255))
     full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -68,3 +68,10 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+
+
+Index(
+    "ix_users_email_normalized_unique",
+    func.lower(func.btrim(User.email)),
+    unique=True,
+)

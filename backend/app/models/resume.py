@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -17,7 +17,7 @@ class ResumeStatus(StrEnum):
 class Resume(Base):
     __tablename__ = "resumes"
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     filename: Mapped[str] = mapped_column(String(255))
     file_path: Mapped[str] = mapped_column(String(500))
@@ -31,3 +31,11 @@ class Resume(Base):
 
     user = relationship("User", back_populates="resumes")
     profile = relationship("ProfessionalProfile", back_populates="resume", uselist=False)
+
+
+Index(
+    "uq_resumes_one_active_per_user",
+    Resume.user_id,
+    unique=True,
+    postgresql_where=Resume.is_active.is_(True),
+)

@@ -1,7 +1,7 @@
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -12,6 +12,7 @@ from app.models.auth import (
     EmailOutbox,
     EmailOutboxStatus,
 )
+from app.models.resume import Resume, ResumeStatus
 from app.services.email.outbox import (
     cancel_legacy_messages,
     recover_abandoned_messages,
@@ -27,6 +28,7 @@ class CleanupResult:
     rate_limit_buckets: int
     legacy_outbox_cancelled: int
     abandoned_outbox_recovered: int
+    abandoned_resumes_failed: int
 
     def to_dict(self) -> dict[str, bool | int]:
         return asdict(self)
@@ -43,6 +45,7 @@ def cleanup_temporary_data(
     session_retention_days: int | None = None,
     token_retention_days: int | None = None,
     outbox_retention_days: int | None = None,
+    resume_processing_timeout_minutes: int = 60,
     now: datetime | None = None,
 ) -> CleanupResult:
     current_time = now or utc_now()
@@ -98,6 +101,13 @@ def cleanup_temporary_data(
             )
         )
     )
+    abandoned_resume_cutoff = (
+        current_time - timedelta(minutes=resume_processing_timeout_minutes)
+    ).replace(tzinfo=None)
+    abandoned_resume_filter = (
+        (Resume.status == ResumeStatus.PROCESSING)
+        & (Resume.created_at <= abandoned_resume_cutoff)
+    )
 
     if dry_run:
         return CleanupResult(
@@ -108,10 +118,16 @@ def cleanup_temporary_data(
             rate_limit_buckets=_count(db, AuthRateLimitBucket, bucket_filter),
             legacy_outbox_cancelled=_count(db, EmailOutbox, legacy_filter),
             abandoned_outbox_recovered=_count(db, EmailOutbox, abandoned_filter),
+            abandoned_resumes_failed=_count(db, Resume, abandoned_resume_filter),
         )
 
     legacy_cancelled = cancel_legacy_messages(db, now=current_time)
     abandoned_recovered = recover_abandoned_messages(db, now=current_time)
+    abandoned_resumes_failed = _fail_abandoned_resumes(
+        db,
+        abandoned_resume_filter,
+        current_time.replace(tzinfo=None),
+    )
     sessions = _delete(db, AuthSession, session_filter)
     account_tokens = _delete(db, AccountToken, token_filter)
     email_outbox = _delete(db, EmailOutbox, outbox_filter)
@@ -125,6 +141,7 @@ def cleanup_temporary_data(
         rate_limit_buckets=rate_limit_buckets,
         legacy_outbox_cancelled=legacy_cancelled,
         abandoned_outbox_recovered=abandoned_recovered,
+        abandoned_resumes_failed=abandoned_resumes_failed,
     )
 
 
@@ -135,4 +152,20 @@ def _count(db: Session, model, condition) -> int:
 
 def _delete(db: Session, model, condition) -> int:
     result = db.execute(delete(model).where(condition))
+    return int(result.rowcount or 0)
+
+
+def _fail_abandoned_resumes(
+    db: Session,
+    condition,
+    failed_at: datetime,
+) -> int:
+    result = db.execute(
+        update(Resume)
+        .where(condition)
+        .values(
+            status=ResumeStatus.FAILED,
+            processed_at=failed_at,
+        )
+    )
     return int(result.rowcount or 0)

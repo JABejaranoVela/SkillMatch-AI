@@ -17,6 +17,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--session-retention-days", type=_positive_int)
     parser.add_argument("--token-retention-days", type=_positive_int)
     parser.add_argument("--outbox-retention-days", type=_positive_int)
+    parser.add_argument(
+        "--resume-processing-timeout-minutes",
+        type=_positive_int,
+        default=60,
+        help=(
+            "Mark resumes stuck in processing older than this timeout as failed. "
+            "No files are deleted."
+        ),
+    )
     return parser
 
 
@@ -29,6 +38,7 @@ def main() -> None:
             session_retention_days=args.session_retention_days,
             token_retention_days=args.token_retention_days,
             outbox_retention_days=args.outbox_retention_days,
+            resume_processing_timeout_minutes=args.resume_processing_timeout_minutes,
         )
     print(json.dumps(result.to_dict(), sort_keys=True))
 

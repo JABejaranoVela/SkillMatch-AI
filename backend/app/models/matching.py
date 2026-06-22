@@ -9,7 +9,7 @@ from app.db.base import Base
 class MatchResult(Base):
     __tablename__ = "match_results"
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     resume_id: Mapped[int] = mapped_column(ForeignKey("resumes.id"), index=True)
     job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id"), index=True)

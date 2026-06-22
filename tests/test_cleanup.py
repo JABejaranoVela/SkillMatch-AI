@@ -24,7 +24,7 @@ class CleanupSession:
 
 
 def test_cleanup_dry_run_only_counts_rows() -> None:
-    db = CleanupSession(counts=[2, 3, 4, 5, 1, 1])
+    db = CleanupSession(counts=[2, 3, 4, 5, 1, 1, 7])
 
     result = cleanup_temporary_data(
         db,
@@ -38,12 +38,13 @@ def test_cleanup_dry_run_only_counts_rows() -> None:
     assert result.rate_limit_buckets == 5
     assert result.legacy_outbox_cancelled == 1
     assert result.abandoned_outbox_recovered == 1
+    assert result.abandoned_resumes_failed == 7
     assert db.commits == 0
-    assert len(db.executed) == 6
+    assert len(db.executed) == 7
 
 
 def test_cleanup_cancels_recovers_and_deletes_in_one_commit() -> None:
-    db = CleanupSession(rowcounts=[1, 2, 3, 4, 5, 6])
+    db = CleanupSession(rowcounts=[1, 2, 3, 4, 5, 6, 7])
 
     result = cleanup_temporary_data(
         db,
@@ -52,8 +53,9 @@ def test_cleanup_cancels_recovers_and_deletes_in_one_commit() -> None:
 
     assert result.legacy_outbox_cancelled == 1
     assert result.abandoned_outbox_recovered == 2
-    assert result.sessions == 3
-    assert result.account_tokens == 4
-    assert result.email_outbox == 5
-    assert result.rate_limit_buckets == 6
+    assert result.abandoned_resumes_failed == 3
+    assert result.sessions == 4
+    assert result.account_tokens == 5
+    assert result.email_outbox == 6
+    assert result.rate_limit_buckets == 7
     assert db.commits == 1

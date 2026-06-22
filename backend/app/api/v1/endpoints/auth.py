@@ -87,7 +87,7 @@ def register(
         return AuthMessage(message=REGISTRATION_MESSAGE)
 
     existing_user = db.scalar(
-        select(User).where(func.lower(User.email) == normalized_email)
+        select(User).where(func.lower(func.btrim(User.email)) == normalized_email)
     )
     if existing_user:
         return AuthMessage(message=REGISTRATION_MESSAGE)
@@ -224,7 +224,7 @@ def forgot_password(
 
     user = db.scalar(
         select(User)
-        .where(func.lower(User.email) == normalized_email)
+        .where(func.lower(func.btrim(User.email)) == normalized_email)
         .with_for_update()
     )
     if (
@@ -314,7 +314,7 @@ def login(
         window_seconds=settings.LOGIN_RATE_LIMIT_WINDOW_MINUTES * 60,
     )
     user = db.scalar(
-        select(User).where(func.lower(User.email) == normalized_email)
+        select(User).where(func.lower(func.btrim(User.email)) == normalized_email)
     )
     if not user:
         raise HTTPException(status_code=401, detail="Credenciales incorrectas")

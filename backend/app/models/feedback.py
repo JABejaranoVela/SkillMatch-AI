@@ -17,7 +17,7 @@ class InteractionType(StrEnum):
 class UserJobInteraction(Base):
     __tablename__ = "user_job_interactions"
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id"), index=True)
     match_result_id: Mapped[int | None] = mapped_column(
@@ -25,4 +25,3 @@ class UserJobInteraction(Base):
     )
     interaction_type: Mapped[InteractionType] = mapped_column(Enum(InteractionType))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-

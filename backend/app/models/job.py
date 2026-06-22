@@ -17,7 +17,7 @@ class Job(Base):
     __tablename__ = "jobs"
     __table_args__ = (UniqueConstraint("source", "external_id", name="uq_jobs_source_external_id"),)
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(String(255), index=True)
     company: Mapped[str | None] = mapped_column(String(255), nullable=True)
     description: Mapped[str] = mapped_column(Text)
