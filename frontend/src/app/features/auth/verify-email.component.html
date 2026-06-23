@@ -38,7 +38,14 @@
 
     @if (state === 'valid') {
       <div class="verification-actions">
-        <a class="primary-action" routerLink="/resumes">Ir a mi CV</a>
+        <button
+          class="primary-action"
+          type="button"
+          [disabled]="isRedirecting"
+          (click)="goToLogin()"
+        >
+          Iniciar sesión
+        </button>
       </div>
     } @else if (state !== 'verifying') {
       <div class="verification-actions">

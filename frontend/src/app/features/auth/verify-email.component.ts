@@ -1,7 +1,7 @@
 import { AsyncPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   LucideCircleAlert,
   LucideCircleCheck,
@@ -29,10 +29,12 @@ export class VerifyEmailComponent implements OnInit {
   readonly user$ = this.authService.user$;
   state: 'verifying' | 'valid' | 'expired' | 'used' | 'invalid' = 'verifying';
   message = 'Estamos comprobando tu enlace de verificación.';
+  isRedirecting = false;
 
   constructor(
     private readonly authService: AuthService,
-    private readonly route: ActivatedRoute
+    private readonly route: ActivatedRoute,
+    private readonly router: Router
   ) {}
 
   ngOnInit(): void {
@@ -63,6 +65,24 @@ export class VerifyEmailComponent implements OnInit {
         this.state = 'invalid';
         this.message = 'El enlace no es válido. Comprueba que lo has abierto completo.';
       }
+    });
+  }
+
+  goToLogin(): void {
+    if (this.isRedirecting) {
+      return;
+    }
+
+    this.isRedirecting = true;
+    this.authService.logoutCurrentSession().subscribe({
+      next: () => this.navigateToVerifiedLogin(),
+      error: () => this.navigateToVerifiedLogin()
+    });
+  }
+
+  private navigateToVerifiedLogin(): void {
+    void this.router.navigate(['/login'], {
+      queryParams: { reason: 'verified' }
     });
   }
 }

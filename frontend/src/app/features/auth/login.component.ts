@@ -36,6 +36,8 @@ export class LoginComponent implements OnInit {
     } else if (reason === 'disabled') {
       this.accountMessage =
         'Tu cuenta está deshabilitada. Contacta con soporte si necesitas ayuda.';
+    } else if (reason === 'verified') {
+      this.accountMessage = 'Correo verificado. Ahora puedes iniciar sesión.';
     }
   }
 

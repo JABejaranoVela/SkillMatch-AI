@@ -140,14 +140,7 @@ export class AuthService {
   verifyEmail(token: string): Observable<AuthMessage> {
     return this.http.post<AuthMessage>(`${this.api.baseUrl}/auth/verify-email`, {
       token
-    }).pipe(
-      switchMap((response) => {
-        if (!this.isAuthenticated) {
-          return of(response);
-        }
-        return this.refreshSession().pipe(map(() => response));
-      })
-    );
+    });
   }
 
   resendVerification(): Observable<AuthMessage> {
@@ -212,13 +205,21 @@ export class AuthService {
   }
 
   logout(): void {
-    this.http.post<void>(`${this.api.baseUrl}/auth/logout`, {}).pipe(
+    this.logoutCurrentSession().pipe(
       finalize(() => {
-        this.accountStateReason = null;
-        this.clearSession();
         void this.router.navigateByUrl('/login');
       })
     ).subscribe();
+  }
+
+  logoutCurrentSession(): Observable<void> {
+    return this.http.post<void>(`${this.api.baseUrl}/auth/logout`, {}).pipe(
+      catchError(() => of(undefined)),
+      tap(() => {
+        this.accountStateReason = null;
+        this.clearSession();
+      })
+    );
   }
 
   private restoreSession(): Observable<AuthUser | null> {

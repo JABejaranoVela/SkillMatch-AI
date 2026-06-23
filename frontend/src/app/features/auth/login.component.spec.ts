@@ -94,4 +94,12 @@ describe('LoginComponent', () => {
     expect(authService.safeReturnUrl).toHaveBeenCalledWith('/jobs?remote=true');
     expect(navigateSpy).toHaveBeenCalledWith('/jobs?remote=true');
   });
+
+  it('shows a verified email message from the login reason', async () => {
+    await createComponent({ reason: 'verified' });
+
+    expect(component.accountMessage).toBe(
+      'Correo verificado. Ahora puedes iniciar sesión.'
+    );
+  });
 });
