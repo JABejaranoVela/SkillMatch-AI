@@ -62,18 +62,8 @@ describe('ResumesComponent', () => {
 
   afterEach(() => TestBed.resetTestingModule());
 
-  it('requires consent before uploading a CV', async () => {
+  it('uploads and processes a selected PDF without requiring extra confirmation', async () => {
     await createComponent();
-
-    component.onFileSelected(fileEvent(new File(['pdf'], 'cv.pdf', { type: 'application/pdf' })));
-
-    expect(resumeService.upload).not.toHaveBeenCalled();
-    expect(component.errorMessage).toContain('Acepta el aviso');
-  });
-
-  it('uploads and processes when consent is accepted', async () => {
-    await createComponent();
-    component.consentAccepted = true;
 
     component.onFileSelected(fileEvent(new File(['pdf'], 'cv.pdf', { type: 'application/pdf' })));
 

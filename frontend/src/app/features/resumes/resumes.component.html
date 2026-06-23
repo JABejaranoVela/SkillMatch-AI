@@ -29,17 +29,9 @@
       </svg>
       <h2>Arrastra tu CV aquí o selecciónalo desde tu equipo</h2>
       <p>Formato admitido: PDF</p>
-      <label class="consent-check">
-        <input
-          type="checkbox"
-          [checked]="consentAccepted"
-          [disabled]="isBusy"
-          (change)="consentAccepted = $any($event.target).checked"
-        >
-        <span>
-          He leído y acepto que SkillMatch AI analice mi CV para extraer información profesional y generar recomendaciones de ofertas compatibles. Confirmo que el CV es mío y entiendo que podré eliminarlo desde la aplicación.
-        </span>
-      </label>
+      <p class="upload-note">
+        Al subir tu CV, SkillMatch AI lo analizará para extraer información profesional y generar recomendaciones de ofertas compatibles. Podrás eliminarlo desde tu cuenta.
+      </p>
       <label class="primary-action">
         <input type="file" accept=".pdf,application/pdf" (change)="onFileSelected($event)" [disabled]="isBusy">
         <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true">

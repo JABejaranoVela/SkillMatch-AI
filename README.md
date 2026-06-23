@@ -70,8 +70,8 @@ pero las reglas permiten explicar coincidencias concretas.
 - Patrones conservadores para terminos tecnicos no registrados.
 - GLiNER opcional; el MVP no depende de entrenar un modelo propio.
 - Solo un CV permanece activo por usuario para evitar rankings ambiguos.
-- El usuario debe aceptar un consentimiento minimo antes de subir el CV y puede
-  eliminarlo junto con su perfil y resultados derivados.
+- La pantalla de CV muestra un aviso informativo antes de subir el archivo; el
+  usuario puede eliminarlo junto con su perfil y resultados derivados.
 
 ### Seguridad
 

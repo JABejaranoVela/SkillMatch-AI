@@ -29,7 +29,6 @@ export class ResumesComponent implements OnInit {
   isUploading = false;
   isProcessing = false;
   isDeleting = false;
-  consentAccepted = false;
   showAllSkills = false;
   readonly skeletonRows = Array.from({ length: 3 });
 
@@ -298,12 +297,6 @@ export class ResumesComponent implements OnInit {
   }
 
   private uploadSelectedFile(file: File): void {
-    if (!this.consentAccepted) {
-      this.statusMessage = 'Antes de subir tu CV necesitamos tu confirmación.';
-      this.errorMessage = 'Acepta el aviso de análisis y confirma que el CV es tuyo.';
-      return;
-    }
-
     if (!file.name.toLowerCase().endsWith('.pdf')) {
       this.statusMessage = 'Selecciona un archivo PDF.';
       this.errorMessage = 'En esta pantalla solo se admite formato PDF.';

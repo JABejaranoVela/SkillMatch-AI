@@ -31,7 +31,7 @@ La aplicacion Angular contiene:
 - `features/auth/`: login, registro, verificacion y recuperacion de contrasena.
 - `features/landing/`: landing publica y demo de analisis de CV.
 - `features/dashboard/`: inicio privado del usuario.
-- `features/resumes/`: subida, consentimiento, procesamiento, perfil y borrado de CV.
+- `features/resumes/`: subida con aviso informativo, procesamiento, perfil y borrado de CV.
 - `features/jobs/`: busqueda y recomendaciones.
 - `features/saved-jobs/`: ofertas guardadas/postuladas.
 - `features/profile/` y `features/settings/`: cuenta y cambio de contrasena.
@@ -83,7 +83,7 @@ Tras enviar, fallar definitivamente o cancelar, elimina el payload cifrado.
 
 ## Flujo De CV
 
-1. El usuario acepta el aviso minimo de tratamiento del CV en frontend.
+1. El usuario ve un aviso informativo de tratamiento del CV en frontend.
 2. El backend acepta solo PDF.
 3. Se valida extension, MIME, cabecera `%PDF`, parseo real con PyMuPDF, paginas,
    tamano y texto minimo extraible.
