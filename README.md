@@ -13,7 +13,7 @@ opacos y no explican por que una oferta encaja.
 
 SkillMatch AI automatiza ese trabajo:
 
-1. Extrae texto de un CV PDF o DOCX.
+1. Extrae texto de un CV PDF validado de forma defensiva.
 2. Detecta skills, experiencia, idiomas, formacion y tipo de perfil.
 3. Busca ofertas relacionadas con ese perfil.
 4. Calcula una compatibilidad combinando reglas y similitud semantica.
@@ -27,7 +27,7 @@ revision y hacer visible el criterio usado en el ranking.
 
 El proyecto trabaja con cuatro grupos de datos:
 
-- **CV del usuario:** documento PDF/DOCX subido de forma privada. No se incluyen CV
+- **CV del usuario:** documento PDF subido de forma privada. No se incluyen CV
   reales en el repositorio.
 - **Diccionario de skills:** 90 habilidades versionadas en
   `data/skills/skills.es.json`, con categorias y aliases en espanol e ingles.
@@ -63,12 +63,15 @@ pero las reglas permiten explicar coincidencias concretas.
 
 ### Procesamiento de CV
 
-- PyMuPDF para PDF y python-docx para DOCX.
+- PyMuPDF para PDF, con validacion de extension, MIME, cabecera real, parseo,
+  limite de paginas, limite de tamano y minimo de texto extraible.
 - Normalizacion de texto antes de extraer informacion.
 - Diccionario y taxonomia local como fuente principal de skills.
 - Patrones conservadores para terminos tecnicos no registrados.
 - GLiNER opcional; el MVP no depende de entrenar un modelo propio.
 - Solo un CV permanece activo por usuario para evitar rankings ambiguos.
+- El usuario debe aceptar un consentimiento minimo antes de subir el CV y puede
+  eliminarlo junto con su perfil y resultados derivados.
 
 ### Seguridad
 
@@ -89,13 +92,17 @@ pero las reglas permiten explicar coincidencias concretas.
   CORS permitidos.
 - Login, registro, reenvio y recuperacion usan limites persistentes en PostgreSQL.
   Las claves son HMAC-SHA256 y no guardan emails ni IPs en claro.
-- Un comando de mantenimiento elimina sesiones, tokens, correos finalizados y
-  buckets antiguos con retenciones configurables.
+- Un comando de mantenimiento elimina sesiones, tokens, correos finalizados,
+  buckets antiguos y recupera estados abandonados con retenciones configurables.
+- En produccion Brevo es el proveedor obligatorio de correo; Console y Fake quedan
+  para desarrollo y tests.
+- Swagger/OpenAPI permanece disponible en desarrollo y se deshabilita en
+  produccion.
 
 ### Arquitectura
 
 ```text
-Angular 18
+Angular 20
     |
     | HTTP + cookie HttpOnly
     v
@@ -137,15 +144,18 @@ entorno local.
 - Busqueda asincrona de ofertas por perfil.
 - Recomendaciones paginadas y explicadas.
 - Guardado, descarte y postulacion de ofertas.
+- Eliminacion de CV con borrado de archivo y datos derivados, conservando
+  interacciones desvinculadas.
 - Perfil y ajustes de cuenta.
 - Guards Angular y dependencias FastAPI para usuarios verificados.
+- Configuracion Docker separada para desarrollo y produccion.
 
 ## Stack
 
-- Angular 18, TypeScript y SCSS.
+- Angular 20, TypeScript y SCSS.
 - FastAPI, Python 3.12, SQLAlchemy, Alembic y Pydantic.
 - PostgreSQL 16 y pgvector.
-- sentence-transformers, spaCy, PyMuPDF y python-docx.
+- sentence-transformers, spaCy y PyMuPDF.
 - Docker Compose y Nginx.
 
 ## Arranque Local
@@ -197,14 +207,14 @@ Para produccion, genere secretos propios y configure al menos:
 ENVIRONMENT=production
 DATABASE_URL=postgresql+psycopg://usuario:password-fuerte@db:5432/skillmatch
 SECRET_KEY=un-secreto-aleatorio-de-al-menos-32-caracteres
-FRONTEND_URL=https://app.example.org
-BACKEND_CORS_ORIGINS=["https://app.example.org"]
+FRONTEND_URL=https://REPLACE_WITH_FRONTEND_DOMAIN
+BACKEND_CORS_ORIGINS=["https://REPLACE_WITH_FRONTEND_DOMAIN"]
 COOKIE_SECURE=true
 COOKIE_SAMESITE=lax
 TRUST_PROXY_HEADERS=false
 EMAIL_PROVIDER=brevo
 BREVO_API_KEY=...
-EMAIL_FROM=SkillMatch AI <noreply@example.org>
+EMAIL_FROM=SkillMatch AI <noreply@REPLACE_WITH_VERIFIED_DOMAIN>
 EMAIL_PAYLOAD_ENCRYPTION_KEY=...
 EMAIL_MAX_ATTEMPTS=6
 PASSWORD_RESET_TTL_MINUTES=60
@@ -212,7 +222,7 @@ PASSWORD_RESET_MAX_REQUESTS_PER_HOUR=5
 ```
 
 La aplicacion rechaza el arranque productivo con credenciales predeterminadas,
-HTTP/localhost en CORS, remitente `example.com`, cookie insegura o proveedor de
+placeholders sin sustituir, HTTP/localhost en CORS, cookie insegura o proveedor de
 correo distinto de Brevo. `TRUST_PROXY_HEADERS` solo debe activarse si FastAPI no
 es accesible directamente y el proxy controlado sobrescribe `X-Forwarded-For`.
 
@@ -302,11 +312,23 @@ npm run test:ci
 npm run build
 ```
 
-Estado validado el 11 de junio de 2026:
+Estado validado el 23 de junio de 2026:
 
-- 117 pruebas backend superadas.
-- 23 pruebas Angular superadas en la Fase 6.
+- 178 pruebas backend superadas.
+- 52 pruebas Angular superadas.
 - Build Angular y lint backend correctos.
+- `npm audit --omit=dev` sin vulnerabilidades de produccion.
+- Alembic alineado con los modelos.
+
+## Despliegue Controlado
+
+El proyecto esta preparado para un primer despliegue controlado/staging. No se
+recomienda abrirlo todavia a usuarios reales sin dominio, HTTPS, Brevo real,
+backups probados, monitorizacion y revision legal de privacidad.
+
+- Guia general de despliegue: [docs/deployment.md](docs/deployment.md).
+- Runbook de staging: [docs/staging-runbook.md](docs/staging-runbook.md).
+- Borrador tecnico de privacidad: [docs/privacy.md](docs/privacy.md).
 
 ## Estructura
 

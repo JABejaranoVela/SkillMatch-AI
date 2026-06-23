@@ -1,5 +1,9 @@
 # Fases De Desarrollo
 
+> Documento historico de planificacion por fases. Puede no reflejar el estado
+> final actual. Para el estado actualizado consultar `README.md`,
+> `docs/estado-actual.md` y `docs/staging-runbook.md`.
+
 ## 1. Fundacion Del Proyecto - Completada
 
 - Estructura backend/frontend/data/docs/docker.
@@ -8,7 +12,7 @@
 
 ## 2. CV Y Perfil Profesional - Completada
 
-- Subida PDF/DOCX.
+- Subida PDF.
 - Extraccion y normalizacion de texto.
 - Diccionario y taxonomia de skills.
 - Perfil principal/secundario, experiencia, idiomas y formacion.
@@ -71,7 +75,7 @@
 
 Pendiente para una operacion madura:
 
-- Borrado de cuenta/CV y retencion completa de datos personales.
+- Borrado completo de cuenta y retencion completa de datos personales.
 - Metricas, alertas y backups restaurados periodicamente.
 - Pipeline de despliegue productivo.
 

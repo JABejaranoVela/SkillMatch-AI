@@ -18,7 +18,7 @@ El MVP implementa:
 - cambio de contrasena con revocacion selectiva de sesiones;
 - cola persistente de correo con payload cifrado, worker y proveedor Brevo;
 - usuarios `pending`, `active` y `disabled`;
-- subida y procesamiento de CV PDF/DOCX;
+- subida y procesamiento de CV PDF;
 - un unico CV activo por usuario;
 - deteccion de skills, tipo de perfil, experiencia, idiomas y formacion;
 - busqueda de ofertas basada en el perfil;
@@ -31,15 +31,15 @@ El MVP implementa:
 No estan implementados todavia:
 
 - entrenamiento supervisado con el feedback;
-- borrado de cuenta/CV y politica completa de retencion;
+- borrado completo de cuenta y politica completa de retencion;
 - despliegue productivo automatizado.
 
 ## Stack
 
-- Frontend: Angular 18, TypeScript, SCSS y Lucide.
+- Frontend: Angular 20, TypeScript, SCSS y Lucide.
 - Backend: Python 3.12, FastAPI, SQLAlchemy, Alembic y Pydantic.
 - Base de datos: PostgreSQL 16 con pgvector.
-- CV: PyMuPDF para PDF y python-docx para DOCX.
+- CV: PyMuPDF para PDF con validacion defensiva.
 - NLP: diccionario local, taxonomia, regex y GLiNER opcional.
 - Embeddings: `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`.
 - Seguridad: Argon2id, compatibilidad de migracion bcrypt, sesiones opacas,

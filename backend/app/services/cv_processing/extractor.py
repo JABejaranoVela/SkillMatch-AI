@@ -66,7 +66,3 @@ def extract_text_from_pdf_bytes(
     if min_text_chars is not None and len(" ".join(text.split())) < min_text_chars:
         raise CvValidationError("No se ha podido extraer suficiente texto del PDF.")
     return text
-
-
-def extract_text_from_docx(_path: str) -> str:
-    raise CvValidationError("Tipo de archivo no permitido. Sube un PDF.")
