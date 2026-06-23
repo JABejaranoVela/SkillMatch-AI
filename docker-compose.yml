@@ -13,6 +13,7 @@ services:
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
 
   backend:
+    image: skillmatch-ai-backend:dev
     build:
       context: ./backend
     container_name: skillmatch-backend
@@ -72,6 +73,7 @@ services:
       - db
 
   email-worker:
+    image: skillmatch-ai-backend:dev
     build:
       context: ./backend
     container_name: skillmatch-email-worker

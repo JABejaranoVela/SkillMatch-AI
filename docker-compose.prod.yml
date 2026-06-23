@@ -73,6 +73,7 @@ services:
       - skillmatch_internal
 
   backend:
+    image: skillmatch-ai-backend:prod
     build:
       context: .
       dockerfile: backend/Dockerfile.prod
@@ -97,6 +98,7 @@ services:
       - skillmatch_internal
 
   email-worker:
+    image: skillmatch-ai-backend:prod
     build:
       context: .
       dockerfile: backend/Dockerfile.prod
@@ -114,6 +116,7 @@ services:
       - skillmatch_internal
 
   frontend:
+    image: skillmatch-ai-frontend:prod
     build:
       context: .
       dockerfile: frontend/Dockerfile.prod

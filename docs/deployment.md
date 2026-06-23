@@ -22,6 +22,74 @@ HTTPS real, dominio definitivo ni operacion completa de infraestructura.
 - Las migraciones se ejecutan manualmente.
 - Swagger/OpenAPI queda deshabilitado en `ENVIRONMENT=production`.
 
+Las imagenes de desarrollo y produccion usan tags separados para evitar que un
+build productivo sustituya la imagen usada por el entorno local:
+
+- Desarrollo backend: `skillmatch-ai-backend:dev`.
+- Produccion backend y `email-worker`: `skillmatch-ai-backend:prod`.
+- Produccion frontend: `skillmatch-ai-frontend:prod`.
+
+Si despues de cambiar tags Docker mantiene un contenedor antiguo, recrea el
+backend local de forma controlada:
+
+```bash
+docker compose up -d --force-recreate backend
+```
+
+Construir produccion con `docker compose -f docker-compose.prod.yml build` no
+debe afectar a `skillmatch-ai-backend:dev`.
+
+## Dominio y HTTPS
+
+Opcion recomendada para un VPS pequeno: usar un reverse proxy externo en el
+host para gestionar HTTPS.
+
+Flujo recomendado:
+
+```text
+Internet -> reverse proxy del host con HTTPS -> contenedor frontend/Nginx HTTP -> backend interno
+```
+
+Ventajas:
+
+- Los certificados quedan fuera del repositorio y fuera de la imagen Docker.
+- Puedes renovar certificados en el host con la herramienta que prefieras.
+- El contenedor frontend sigue siendo simple y sirve HTTP interno.
+- Backend, PostgreSQL y `email-worker` siguen sin publicarse al exterior.
+
+Opciones habituales para el reverse proxy externo:
+
+- Nginx instalado en el VPS.
+- Caddy instalado en el VPS.
+- Traefik instalado en el VPS.
+
+No guardes certificados, claves privadas ni configuraciones con secretos en Git.
+
+Alternativa avanzada: gestionar TLS dentro del contenedor frontend. En ese caso,
+monta certificados como volumen externo de solo lectura y no los copies a la
+imagen ni al repositorio. Esta opcion requiere ajustar `frontend/nginx.prod.conf`
+para escuchar en `443` y queda fuera de la configuracion por defecto.
+
+### Puertos con reverse proxy externo
+
+La configuracion inicial publica:
+
+```yaml
+ports:
+  - "80:80"
+```
+
+Si delante hay un reverse proxy externo en el host, puedes limitar el puerto al
+loopback del servidor:
+
+```yaml
+ports:
+  - "127.0.0.1:8080:80"
+```
+
+Con esa variante, el proxy externo deberia apuntar a `http://127.0.0.1:8080`.
+No cambies este mapeo sin validar primero el proxy y el healthcheck.
+
 ## Crear `.env.prod`
 
 1. Copia el ejemplo:
@@ -65,6 +133,19 @@ Variables obligatorias principales:
 - `JOB_SEARCH_RATE_LIMIT_PER_HOUR`
 - `JOB_SEARCH_STALE_MINUTES`
 
+Para dominio real, estos valores deben coincidir:
+
+```env
+FRONTEND_URL=https://DOMINIO_REAL
+BACKEND_CORS_ORIGINS=["https://DOMINIO_REAL"]
+COOKIE_SECURE=true
+COOKIE_SAMESITE=lax
+```
+
+Si el frontend y la API se sirven bajo el mismo dominio, el navegador llamara a
+`/api/...` y Nginx lo enviara al backend interno. No publiques el backend
+directamente salvo que cambies el diseno de despliegue y revises CORS/Origin.
+
 Genera una clave Fernet para `EMAIL_PAYLOAD_ENCRYPTION_KEY` con:
 
 ```bash
@@ -100,6 +181,21 @@ Pasos operativos:
 4. Verificar el dominio o remitente en Brevo.
 5. Configurar SPF, DKIM y DMARC en DNS. Esto queda como requisito operativo
    pendiente antes de enviar correo real a usuarios.
+
+Checklist DNS y Brevo:
+
+- Crear un `A record` del dominio hacia la IP publica del VPS.
+- Activar HTTPS/certificado en el reverse proxy externo.
+- Configurar `FRONTEND_URL=https://DOMINIO_REAL`.
+- Configurar `BACKEND_CORS_ORIGINS=["https://DOMINIO_REAL"]`.
+- Guardar `BREVO_API_KEY` solo en `.env.prod` o en el sistema de secretos real.
+- Verificar remitente o dominio en Brevo.
+- Configurar SPF segun las instrucciones de Brevo.
+- Configurar DKIM segun las instrucciones de Brevo.
+- Configurar DMARC, al menos con politica inicial de monitorizacion.
+- Probar registro de usuario.
+- Probar verificacion de email.
+- Probar recuperacion de contrasena.
 
 Los endpoints de registro, reenvio de verificacion y recuperacion de contrasena
 no llaman a Brevo directamente. Crean filas `pending` en `email_outbox`; el
@@ -145,6 +241,33 @@ En produccion quedan deshabilitados:
 - `/api/v1/openapi.json`
 
 Esto evita exponer documentacion automatica de API en una instalacion publica.
+
+## Cabeceras de seguridad en Nginx
+
+`frontend/nginx.prod.conf` aplica cabeceras basicas:
+
+- `X-Content-Type-Options: nosniff`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `X-Frame-Options: DENY`
+- `Permissions-Policy` deshabilitando camara, microfono, geolocalizacion y pagos.
+- CSP conservadora compatible con Angular y llamadas relativas a `/api/...`.
+
+HSTS no esta activado por defecto. Activalo solo cuando:
+
+- el dominio real funcione con HTTPS;
+- el certificado sea valido y renovable;
+- hayas probado acceso real por HTTPS;
+- no necesites servir la aplicacion por HTTP.
+
+Cabecera orientativa para activar despues:
+
+```nginx
+add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+```
+
+La CSP actual prioriza no romper la SPA. Un endurecimiento mas estricto debe
+probarse con el dominio real, assets definitivos y cualquier proveedor externo
+que se anada en el futuro.
 
 ## Build productivo
 
@@ -197,6 +320,10 @@ Servicios:
 - `email-worker`: envio de email desde `email_outbox`.
 - `frontend`: Nginx publico en `80:80`.
 
+El unico punto de entrada externo debe ser `frontend` o el reverse proxy externo
+del host. PostgreSQL, backend y `email-worker` no deben publicar puertos al
+exterior.
+
 ## Healthchecks
 
 Comprobar estado:
@@ -222,6 +349,44 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml logs -f email-wor
 docker compose --env-file .env.prod -f docker-compose.prod.yml logs -f db
 ```
 
+## Operacion habitual
+
+Ver contenedores:
+
+```bash
+docker compose --env-file .env.prod -f docker-compose.prod.yml ps
+```
+
+Ejecutar migraciones manuales:
+
+```bash
+docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm backend alembic upgrade head
+```
+
+Ejecutar limpieza de datos temporales en modo simulacion:
+
+```bash
+docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm backend python -m app.commands.cleanup --dry-run
+```
+
+Ejecutar limpieza real despues de revisar el `--dry-run`:
+
+```bash
+docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm backend python -m app.commands.cleanup
+```
+
+Comprobar healthcheck HTTP:
+
+```bash
+curl http://localhost/api/v1/health
+```
+
+Si usas dominio real con HTTPS:
+
+```bash
+curl https://DOMINIO_REAL/api/v1/health
+```
+
 ## Parada
 
 ```bash
@@ -230,16 +395,29 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml down
 
 Para parar sin borrar volumenes, no uses `-v`.
 
-## Backup minimo antes de migrar
+## Backup y restauracion minima
 
-Ejemplo orientativo:
+Haz backup antes de cualquier migracion o despliegue que pueda cambiar datos.
+Guarda el backup fuera del contenedor y, preferiblemente, fuera del VPS.
+
+Backup con `pg_dump`:
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml exec db pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" > backup.sql
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T db pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" > backups/skillmatch_$(date +%Y%m%d_%H%M%S).sql
 ```
 
-Valida el comando en el servidor real antes de confiar en el como estrategia de
-backup.
+Restauracion orientativa en una base vacia o entorno de prueba:
+
+```bash
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T db psql -U "$POSTGRES_USER" "$POSTGRES_DB" < backups/backup_a_restaurar.sql
+```
+
+Advertencias:
+
+- Prueba la restauracion antes de abrir la aplicacion a usuarios reales.
+- No guardes backups en Git.
+- Protege los backups porque pueden contener CVs, emails y datos personales.
+- Define retencion, cifrado y ubicacion externa en una fase operativa posterior.
 
 ## Validaciones antes de desplegar
 
