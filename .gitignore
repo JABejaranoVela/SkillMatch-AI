@@ -45,6 +45,9 @@ pnpm-debug.log*
 # Runtime data and local databases
 storage/
 postgres_data/
+backups/
+*.sql
+*.dump
 *.db
 *.sqlite
 *.sqlite3
@@ -69,3 +72,4 @@ Desktop.ini
 
 # Local Docker overrides
 docker-compose.override.yml
+docker-compose.prod.override.yml

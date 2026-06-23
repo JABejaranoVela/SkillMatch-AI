@@ -3,6 +3,8 @@
 Este documento describe la configuracion Docker de produccion inicial. No incluye
 HTTPS real, dominio definitivo ni operacion completa de infraestructura.
 
+Para el primer despliegue controlado/staging, seguir `docs/staging-runbook.md`.
+
 ## Desarrollo frente a produccion
 
 `docker-compose.yml` sigue siendo el entorno de desarrollo:
