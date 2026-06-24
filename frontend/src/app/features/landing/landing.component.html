@@ -56,17 +56,17 @@
   <main id="inicio">
     <section class="hero-section" aria-labelledby="hero-title">
       <div class="hero-copy">
-        <span class="hero-eyebrow">
+        <span class="hero-eyebrow animate-fade-in-up">
           <svg lucideSparkles aria-hidden="true"></svg>
           Recomendaciones laborales explicables
         </span>
-        <h1 id="hero-title">Convierte tu CV en <span>oportunidades reales</span></h1>
-        <p class="hero-description">
+        <h1 id="hero-title" class="animate-fade-in-up stagger-1">Convierte tu CV en <span>oportunidades reales</span></h1>
+        <p class="hero-description animate-fade-in-up stagger-2">
           Analizamos tu currículum, detectamos tus habilidades y te mostramos ofertas compatibles
           con una explicación clara de por qué encajan contigo.
         </p>
 
-        <div class="hero-actions">
+        <div class="hero-actions animate-fade-in-up stagger-3">
           @if (authenticated$ | async) {
             <a class="primary-button" routerLink="/resumes">
               <svg lucideCloudUpload aria-hidden="true"></svg>
@@ -84,13 +84,13 @@
           </a>
         </div>
 
-        <p class="trust-copy">
+        <p class="trust-copy animate-fade-in-up stagger-4">
           <svg lucideShieldCheck aria-hidden="true"></svg>
           Tus datos se usan solo para analizar tu perfil y mejorar tus recomendaciones.
         </p>
       </div>
 
-      <div class="product-preview" id="demo" aria-label="Ejemplo visual de SkillMatch AI">
+      <div class="product-preview animate-scale-in stagger-3" id="demo" aria-label="Ejemplo visual de SkillMatch AI">
         <div class="preview-sidebar" aria-hidden="true">
           <span class="preview-logo">
             <svg lucideSparkles></svg>
@@ -149,7 +149,7 @@
       </div>
     </section>
 
-    <section class="workflow-section" id="como-funciona" aria-labelledby="workflow-title">
+    <section class="workflow-section" id="como-funciona" aria-labelledby="workflow-title" appRevealOnScroll>
       <div class="section-heading">
         <span>Proceso sencillo</span>
         <h2 id="workflow-title">Cómo funciona</h2>
@@ -187,7 +187,7 @@
       </div>
     </section>
 
-    <section class="demo-section" id="demo-cv" aria-labelledby="demo-title">
+    <section class="demo-section" id="demo-cv" aria-labelledby="demo-title" appRevealOnScroll>
       <div class="demo-heading">
         <span>
           <svg lucideSparkles aria-hidden="true"></svg>
@@ -403,7 +403,7 @@
       </div>
     </section>
 
-    <section class="benefits-section" id="analiza-cv" aria-labelledby="analysis-title">
+    <section class="benefits-section" id="analiza-cv" aria-labelledby="analysis-title" appRevealOnScroll>
       <div class="section-heading">
         <span>Análisis profesional</span>
         <h2 id="analysis-title">Entiende qué información profesional contiene tu CV</h2>
@@ -427,6 +427,7 @@
       class="benefits-section offers-benefits-section"
       id="ofertas-compatibles"
       aria-labelledby="offers-title"
+      appRevealOnScroll
     >
       <div class="section-heading">
         <span>Recomendaciones relevantes</span>
@@ -447,7 +448,7 @@
       </div>
     </section>
 
-    <section class="audience-section" id="para-quien-es" aria-labelledby="audience-title">
+    <section class="audience-section" id="para-quien-es" aria-labelledby="audience-title" appRevealOnScroll>
       <div class="section-heading">
         <span>Perfiles profesionales</span>
         <h2 id="audience-title">¿Para quién es SkillMatch AI?</h2>
@@ -473,7 +474,7 @@
       </div>
     </section>
 
-    <section class="why-section" aria-labelledby="why-title">
+    <section class="why-section" aria-labelledby="why-title" appRevealOnScroll>
       <div class="why-copy">
         <span>Decisiones con más contexto</span>
         <h2 id="why-title">¿Por qué usar SkillMatch AI?</h2>
@@ -492,7 +493,7 @@
       </div>
     </section>
 
-    <section class="final-cta" aria-labelledby="cta-title">
+    <section class="final-cta" aria-labelledby="cta-title" appRevealOnScroll>
       <span class="cta-icon" aria-hidden="true"><svg lucideCloudUpload></svg></span>
       <div>
         <h2 id="cta-title">Empieza analizando tu CV</h2>

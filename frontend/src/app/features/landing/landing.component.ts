@@ -26,6 +26,7 @@ import {
 } from '@lucide/angular';
 
 import { AuthService } from '../auth/auth.service';
+import { RevealOnScrollDirective } from '../../shared/directives/reveal-on-scroll.directive';
 import { PublicDemoAnalysis, PublicDemoService } from './public-demo.service';
 
 type DemoState = 'idle' | 'selected' | 'loading' | 'success' | 'error';
@@ -55,7 +56,8 @@ type DemoState = 'idle' | 'selected' | 'loading' | 'success' | 'error';
     LucideSparkles,
     LucideTarget,
     LucideUserRound,
-    LucideX
+    LucideX,
+    RevealOnScrollDirective
   ],
   templateUrl: './landing.component.html',
   styleUrl: './landing.component.scss'

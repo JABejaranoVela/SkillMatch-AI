@@ -224,12 +224,13 @@ h1 span {
   font-weight: 800;
   justify-content: center;
   text-decoration: none;
-  transition: border 0.18s ease, color 0.18s ease;
+  transition: border 0.18s ease, color 0.18s ease, transform 0.18s ease;
 }
 
 .secondary-button:hover {
   border-color: var(--color-primary);
   color: var(--color-primary);
+  transform: translateY(-1px);
 }
 
 .trust-copy {
@@ -959,6 +960,13 @@ h1 span {
   gap: 12px;
   min-width: 0;
   padding: 16px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.demo-result-card:hover {
+  border-color: var(--color-primary-border);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-2px);
 }
 
 .demo-result-card.profile-card,
@@ -1173,6 +1181,15 @@ h1 span {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   padding: 24px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.benefits-grid article:hover,
+.audience-grid article:hover,
+.workflow-grid article:hover {
+  border-color: var(--color-primary-border);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-3px);
 }
 
 .feature-icon,
@@ -1231,10 +1248,13 @@ h1 span {
 }
 
 .workflow-grid article {
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
   min-width: 0;
   padding: 8px 16px;
   position: relative;
   text-align: center;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
 .step-number {
