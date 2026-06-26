@@ -1,0 +1,29 @@
+# Example local production override for a VPS with host Nginx + Certbot.
+#
+# Copy this file on the server as:
+#   docker-compose.prod.override.yml
+#
+# The real override is intentionally ignored by Git. Adjust paths and ports on
+# the VPS only. Do not commit secrets, certificates, or server-specific config.
+services:
+  db:
+    volumes:
+      - /srv/data/skillmatch-ai/postgres:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  backend:
+    # Optional: expose FastAPI only on localhost if host Nginx proxies directly
+    # to the backend. If host Nginx only proxies to frontend:8080 and the
+    # container frontend proxies /api/ internally, this port can be removed.
+    ports:
+      - "127.0.0.1:8001:8000"
+    volumes:
+      - /srv/data/skillmatch-ai/uploads:/app/storage/resumes
+
+  email-worker:
+    volumes:
+      - /srv/data/skillmatch-ai/uploads:/app/storage/resumes
+
+  frontend:
+    ports:
+      - "127.0.0.1:8080:80"

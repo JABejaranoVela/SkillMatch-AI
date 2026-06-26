@@ -3,7 +3,8 @@
 Este documento describe la configuracion Docker de produccion inicial. No incluye
 HTTPS real, dominio definitivo ni operacion completa de infraestructura.
 
-Para el primer despliegue controlado/staging, seguir `docs/staging-runbook.md`.
+Para el primer despliegue controlado/staging en VPS con Nginx host, Certbot,
+HTTPS y UFW, seguir `docs/staging-runbook.md`.
 
 ## Desarrollo frente a produccion
 
@@ -43,8 +44,8 @@ debe afectar a `skillmatch-ai-backend:dev`.
 
 ## Dominio y HTTPS
 
-Opcion recomendada para un VPS pequeno: usar un reverse proxy externo en el
-host para gestionar HTTPS.
+Opcion recomendada para este VPS: usar Nginx instalado en el host como reverse
+proxy externo para gestionar HTTPS con Certbot.
 
 Flujo recomendado:
 
@@ -58,12 +59,6 @@ Ventajas:
 - Puedes renovar certificados en el host con la herramienta que prefieras.
 - El contenedor frontend sigue siendo simple y sirve HTTP interno.
 - Backend, PostgreSQL y `email-worker` siguen sin publicarse al exterior.
-
-Opciones habituales para el reverse proxy externo:
-
-- Nginx instalado en el VPS.
-- Caddy instalado en el VPS.
-- Traefik instalado en el VPS.
 
 No guardes certificados, claves privadas ni configuraciones con secretos en Git.
 
@@ -91,6 +86,19 @@ ports:
 
 Con esa variante, el proxy externo deberia apuntar a `http://127.0.0.1:8080`.
 No cambies este mapeo sin validar primero el proxy y el healthcheck.
+
+Para un VPS con datos persistentes fuera del repo, usa como base
+`docker-compose.prod.override.example.yml` y copialo en el servidor como
+`docker-compose.prod.override.yml`. El override real esta ignorado por Git y
+puede montar:
+
+- `/srv/data/skillmatch-ai/postgres` en `/var/lib/postgresql/data`.
+- `/srv/data/skillmatch-ai/uploads` en `/app/storage/resumes`.
+- `127.0.0.1:8080:80` para frontend.
+- `127.0.0.1:8001:8000` para backend solo si Nginx host necesita proxyear
+  directamente a FastAPI.
+
+PostgreSQL no debe publicar `5432` al host.
 
 ## Crear `.env.prod`
 
@@ -405,13 +413,22 @@ Guarda el backup fuera del contenedor y, preferiblemente, fuera del VPS.
 Backup con `pg_dump`:
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T db pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" > backups/skillmatch_$(date +%Y%m%d_%H%M%S).sql
+mkdir -p /srv/backups/skillmatch-ai/postgres
+
+docker compose --env-file .env.prod \
+  -f docker-compose.prod.yml \
+  -f docker-compose.prod.override.yml \
+  exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' \
+  > /srv/backups/skillmatch-ai/postgres/skillmatch_$(date +%Y%m%d_%H%M%S).sql
 ```
 
 Restauracion orientativa en una base vacia o entorno de prueba:
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T db psql -U "$POSTGRES_USER" "$POSTGRES_DB" < backups/backup_a_restaurar.sql
+cat /srv/backups/skillmatch-ai/postgres/backup_a_restaurar.sql | docker compose --env-file .env.prod \
+  -f docker-compose.prod.yml \
+  -f docker-compose.prod.override.yml \
+  exec -T db sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB"'
 ```
 
 Advertencias:
