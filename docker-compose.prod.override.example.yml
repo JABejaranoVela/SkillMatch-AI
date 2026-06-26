@@ -12,10 +12,9 @@ services:
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
 
   backend:
-    # Optional: expose FastAPI only on localhost if host Nginx proxies directly
-    # to the backend. If host Nginx only proxies to frontend:8080 and the
-    # container frontend proxies /api/ internally, this port can be removed.
-    ports:
+    # !override replaces the base ports list instead of merging it. It requires
+    # a modern Docker Compose version (validated on the VPS with v5.2.0).
+    ports: !override
       - "127.0.0.1:8001:8000"
     volumes:
       - /srv/data/skillmatch-ai/uploads:/app/storage/resumes
@@ -25,5 +24,6 @@ services:
       - /srv/data/skillmatch-ai/uploads:/app/storage/resumes
 
   frontend:
-    ports:
+    # Prevent the base 80:80 mapping from remaining active next to this binding.
+    ports: !override
       - "127.0.0.1:8080:80"

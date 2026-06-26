@@ -320,15 +320,21 @@ Estado validado el 23 de junio de 2026:
 - `npm audit --omit=dev` sin vulnerabilidades de produccion.
 - Alembic alineado con los modelos.
 
-## Despliegue Controlado
+## Despliegue en producción
 
-El proyecto esta preparado para un primer despliegue controlado/staging. No se
-recomienda abrirlo todavia a usuarios reales sin dominio, HTTPS, Brevo real,
-backups probados, monitorizacion y revision legal de privacidad.
+SkillMatch AI esta desplegado en un VPS Ubuntu de Hostinger mediante Docker
+Compose. Nginx actua como reverse proxy y termina HTTPS; PostgreSQL 16 con
+pgvector se ejecuta en una red privada de Docker sin publicar su puerto.
 
+- URL publica: [https://skillmatch.jabejarano.tech](https://skillmatch.jabejarano.tech).
+- Despliegue real en VPS: [docs/deployment-vps.md](docs/deployment-vps.md).
 - Guia general de despliegue: [docs/deployment.md](docs/deployment.md).
 - Runbook de staging: [docs/staging-runbook.md](docs/staging-runbook.md).
 - Borrador tecnico de privacidad: [docs/privacy.md](docs/privacy.md).
+
+Los archivos `.env.prod`, los overrides locales, los backups y los dumps SQL no
+deben subirse al repositorio: contienen configuracion del servidor o pueden
+incluir datos personales.
 
 ## Estructura
 
