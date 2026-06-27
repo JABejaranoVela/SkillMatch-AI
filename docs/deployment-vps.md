@@ -222,7 +222,11 @@ sudo docker compose --env-file .env.prod \
 directorio `PGDATA` vacio. Modificarlo posteriormente no aplica cambios sobre
 una base ya existente; para eso deben utilizarse migraciones Alembic.
 
-## 9. Build, base de datos y migraciones
+## 9. Despliegue manual: build, base de datos y migraciones
+
+Este procedimiento se conserva como alternativa manual. El flujo CI/CD descrito
+en la seccion 17 construye las imagenes en GitHub Actions y evita compilar en el
+VPS.
 
 Construir las imagenes:
 
@@ -538,7 +542,182 @@ Confirmar que `/srv/data/skillmatch-ai/postgres` sigue montado y no se arranco e
 servicio con otro override. No borrar ni reinicializar el directorio para intentar
 recuperarlo.
 
-## 17. Checklist final
+## 17. Despliegue automatico con GitHub Actions
+
+El workflow `.github/workflows/deploy.yml` se ejecuta con cada push a `main` y
+tambien admite ejecucion manual mediante `workflow_dispatch`. Una ejecucion
+manual debe lanzarse desde la rama `main`.
+
+### 17.1 Flujo automatizado
+
+```text
+push main / workflow_dispatch
+        |
+        v
+tests backend + frontend
+        |
+        v
+build backend/frontend en GitHub Actions
+        |
+        v
+GHCR: SHA completo + SHA corto + main
+        |
+        v
+SSH al VPS -> git fast-forward -> docker compose pull
+        |
+        v
+backup PostgreSQL -> Alembic -> up -d -> health checks
+```
+
+- El backend y el frontend se construyen en GitHub Actions, no en el VPS.
+- `email-worker` utiliza exactamente la misma imagen que el backend.
+- El despliegue usa el tag SHA completo, no el tag mutable `main`.
+- `.env.deploy` se genera atomicamente en el VPS con las referencias GHCR y no
+  contiene secretos.
+- Todos los comandos Compose usan `.env.prod` y `.env.deploy` junto con el
+  Compose principal y el override local.
+- Antes de Alembic se crea un backup no vacio. Si `pg_dump` falla, el despliegue
+  termina sin ejecutar migraciones.
+- Los health checks locales y publicos deben pasar para que GitHub marque el
+  despliegue como correcto.
+- No existe rollback automatico ni restauracion automatica de PostgreSQL en esta
+  fase. Un fallo deja el workflow en rojo y conserva el backup predeploy.
+
+### 17.2 Imagenes GHCR
+
+El owner se deriva de `github.repository_owner` y se normaliza a minusculas:
+
+```text
+ghcr.io/<owner>/skillmatch-ai-backend:<sha>
+ghcr.io/<owner>/skillmatch-ai-frontend:<sha>
+```
+
+Cada imagen recibe tags con SHA completo, los primeros 12 caracteres y `main`.
+El label OCI `org.opencontainers.image.source` la asocia al repositorio.
+
+El runner publica con su `GITHUB_TOKEN`. Durante el despliegue se reutiliza ese
+token efimero para autenticar el pull en el VPS mediante `--password-stdin`. La
+configuracion Docker temporal vive en `/dev/shm`, se elimina al terminar y se
+ejecuta `docker logout ghcr.io`. No se necesita guardar un PAT de GHCR en el
+servidor.
+
+Si GitHub deniega el pull, revisar en la configuracion de cada paquete que el
+repositorio `SkillMatch-AI` tenga acceso mediante GitHub Actions.
+
+### 17.3 Secrets requeridos
+
+Configurar en `Settings > Secrets and variables > Actions`:
+
+| Secret | Contenido |
+|---|---|
+| `VPS_HOST` | Host o IP del VPS |
+| `VPS_USER` | Usuario `deploy` |
+| `VPS_SSH_KEY` | Clave privada dedicada al workflow |
+| `VPS_KNOWN_HOSTS` | Entrada verificada de la clave publica SSH del VPS |
+
+`VPS_KNOWN_HOSTS` no se obtiene dinamicamente durante el workflow. Su fingerprint
+debe compararse por un canal confiable con la clave del servidor antes de guardar
+el secret. La clave publica correspondiente a `VPS_SSH_KEY` debe estar en
+`/home/deploy/.ssh/authorized_keys`.
+
+### 17.4 Preparacion unica del VPS
+
+El workflow necesita ejecutar Docker sin solicitar una contrasena interactiva.
+Editar sudoers siempre mediante `visudo`:
+
+```bash
+sudo visudo -f /etc/sudoers.d/skillmatch-deploy
+```
+
+Regla utilizada por este despliegue:
+
+```text
+deploy ALL=(root) NOPASSWD: /usr/bin/docker
+```
+
+El script pasa el directorio temporal mediante la opcion global
+`docker --config`, por lo que no necesita habilitar `SETENV`. Validar la regla:
+
+```bash
+sudo chmod 440 /etc/sudoers.d/skillmatch-deploy
+sudo visudo -cf /etc/sudoers.d/skillmatch-deploy
+sudo -n docker version
+```
+
+Preparar y comprobar el resto del servidor:
+
+```bash
+sudo mkdir -p /srv/backups/skillmatch-ai/postgres
+sudo chown deploy:deploy /srv/backups/skillmatch-ai/postgres
+sudo chmod 750 /srv/backups/skillmatch-ai/postgres
+test -w /srv/backups/skillmatch-ai/postgres
+
+sudo chown -R 999:999 /srv/data/skillmatch-ai/uploads
+sudo chmod -R 750 /srv/data/skillmatch-ai/uploads
+
+cd /srv/apps/skillmatch-ai
+git fetch origin main
+git status --short
+git check-ignore -v .env.prod docker-compose.prod.override.yml
+```
+
+Requisitos adicionales:
+
+- El arbol Git versionado debe estar limpio; el workflow no usa `reset --hard`.
+- `.env.prod` y `docker-compose.prod.override.yml` deben permanecer locales y no
+  versionados.
+- El override debe conservar `ports: !override`, frontend en
+  `127.0.0.1:8080`, backend en `127.0.0.1:8001` y PostgreSQL sin puerto host.
+- El usuario `deploy` debe poder hacer `git fetch origin main`. Si el repositorio
+  fuera privado, configurar una deploy key de solo lectura separada de la clave
+  SSH usada por GitHub Actions para entrar al VPS.
+- Debe existir `curl` en el VPS.
+
+### 17.5 Ejecucion y comprobacion
+
+Para lanzar manualmente el mismo workflow:
+
+1. Abrir `Actions` en GitHub.
+2. Seleccionar `Validate, build and deploy production`.
+3. Pulsar `Run workflow` y seleccionar `main`.
+4. Comprobar que tests, build, push y deploy terminan correctamente.
+
+En el VPS:
+
+```bash
+cd /srv/apps/skillmatch-ai
+
+sudo docker compose \
+  --env-file .env.prod \
+  --env-file .env.deploy \
+  -f docker-compose.prod.yml \
+  -f docker-compose.prod.override.yml \
+  ps
+
+sudo docker compose \
+  --env-file .env.prod \
+  --env-file .env.deploy \
+  -f docker-compose.prod.yml \
+  -f docker-compose.prod.override.yml \
+  logs --tail=100 backend email-worker
+
+curl -fsS http://127.0.0.1:8001/api/v1/health
+curl -fsSI http://127.0.0.1:8080
+curl -fsSI https://skillmatch.jabejarano.tech
+curl -fsS https://skillmatch.jabejarano.tech/api/v1/health
+```
+
+Los backups predeploy se guardan como:
+
+```text
+/srv/backups/skillmatch-ai/postgres/skillmatch_predeploy_<fecha>_<sha-corto>.sql
+```
+
+No se eliminan backups automaticamente. La unica limpieza del workflow es
+`docker image prune -f`, que elimina imagenes dangling; no usa `-a`, no elimina
+volumenes y no toca `/srv/data`.
+
+## 18. Checklist final
 
 - [ ] El registro crea un usuario pendiente.
 - [ ] El email-worker envia el correo de verificacion.
