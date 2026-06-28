@@ -46,7 +46,6 @@ jobs:
       EMAIL_PROVIDER: fake
       EMBEDDINGS_ENABLED: "false"
       SKILL_NER_ENABLED: "false"
-      PYTHONPATH: backend
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -59,19 +58,23 @@ jobs:
           cache-dependency-path: backend/pyproject.toml
 
       - name: Install backend and test tools
+        working-directory: backend
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e "./backend[dev]"
+          python -m pip install -e ".[dev]"
+          python -c "import app; print('app import OK')"
 
       - name: Apply test database migrations
         working-directory: backend
         run: alembic upgrade head
 
       - name: Run backend tests
-        run: python -m pytest -q tests
+        working-directory: backend
+        run: python -m pytest -q tests ../tests
 
       - name: Run Ruff
-        run: ruff check backend/app tests --config backend/pyproject.toml
+        working-directory: backend
+        run: ruff check app tests ../tests
 
       - name: Check Python dependencies
         run: python -m pip check
