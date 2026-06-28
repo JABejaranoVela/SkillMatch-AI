@@ -326,15 +326,8 @@ SkillMatch AI esta desplegado en un VPS Ubuntu de Hostinger mediante Docker
 Compose. Nginx actua como reverse proxy y termina HTTPS; PostgreSQL 16 con
 pgvector se ejecuta en una red privada de Docker sin publicar su puerto.
 
-Los pushes a `main` ejecutan tests, construyen las imagenes productivas en
-GitHub Actions y las publican en GHCR con tags por SHA. El VPS no compila la
-aplicacion: descarga las imagenes, crea un backup PostgreSQL, ejecuta Alembic,
-actualiza los servicios y valida los health checks. En esta fase no existe
-rollback automatico.
-
 - URL publica: [https://skillmatch.jabejarano.tech](https://skillmatch.jabejarano.tech).
 - Despliegue real en VPS: [docs/deployment-vps.md](docs/deployment-vps.md).
-- Automatizacion: [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml).
 - Guia general de despliegue: [docs/deployment.md](docs/deployment.md).
 - Runbook de staging: [docs/staging-runbook.md](docs/staging-runbook.md).
 - Borrador tecnico de privacidad: [docs/privacy.md](docs/privacy.md).
@@ -342,6 +335,21 @@ rollback automatico.
 Los archivos `.env.prod`, los overrides locales, los backups y los dumps SQL no
 deben subirse al repositorio: contienen configuracion del servidor o pueden
 incluir datos personales.
+
+## Production CI/CD
+
+El despliegue automatico de produccion esta operativo mediante
+[GitHub Actions](.github/workflows/deploy.yml). Cada push a `main` valida backend
+y frontend, construye las imagenes en GitHub Actions y las publica en GHCR con
+tags por SHA. El VPS solo descarga las imagenes, crea un backup predeploy de
+PostgreSQL, ejecuta Alembic, actualiza los contenedores y comprueba los health
+checks.
+
+El mismo pipeline puede ejecutarse manualmente con `workflow_dispatch`. En esta
+fase no hay rollback ni restauracion automatica de PostgreSQL.
+
+- Guia principal del CI/CD: [docs/ci-cd-production.md](docs/ci-cd-production.md).
+- Operacion del VPS: [docs/deployment-vps.md](docs/deployment-vps.md).
 
 ## Estructura
 
