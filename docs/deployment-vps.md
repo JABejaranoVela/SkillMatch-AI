@@ -573,7 +573,99 @@ logs e incidencias conocidas se mantiene en la guia principal:
 
 **[CI/CD de produccion](ci-cd-production.md)**
 
-## 18. Checklist final
+## 18. Monitor de correo y alertas Telegram
+
+La aplicación usa la API HTTP de Brevo. El comando de diagnóstico del backend
+consulta `GET https://api.brevo.com/v3/account` con la clave ya configurada y lee
+solo estados e IDs de `email_outbox`. No envía correos ni modifica la cola. La
+salida JSON no contiene destinatarios, tokens, payloads ni respuestas de Brevo.
+
+El monitor del host ejecuta dos comprobaciones: API una vez al día a las 08:00
+(hora local del VPS) y outbox cada cinco minutos. Detecta nuevos `failed`,
+`pending` vencidos más de diez minutos, `sending` abandonados según
+`EMAIL_WORKER_STALE_MINUTES`, worker detenido y consultas imposibles. Envía un
+aviso por incidente y otro al recuperarse los estados transitorios. Un `failed`
+es terminal y no genera aviso de recuperación. El estado de deduplicación queda
+en `/srv/data/skillmatch-ai/tmp/email-monitor-state.json` con permisos privados.
+
+### Instalación manual
+
+Crear el bot con BotFather y obtener el ID del chat de alertas. Guardar ambos
+valores **solo en el VPS**; evitar incluir el token en comandos, URLs del
+historial de shell o logs. El usuario `deploy` debe conservar el permiso
+`sudo -n docker` descrito en la guia de CI/CD.
+
+```bash
+sudo install -d -m 700 -o deploy -g deploy /etc/skillmatch-ai
+sudo install -m 600 -o deploy -g deploy /dev/null /etc/skillmatch-ai/email-monitor.env
+sudo chown deploy:deploy /srv/data/skillmatch-ai/tmp
+sudo chmod 700 /srv/data/skillmatch-ai/tmp
+sudo -u deploy nano /etc/skillmatch-ai/email-monitor.env
+```
+
+Contenido del archivo local (sustituir los marcadores allí, no en Git):
+
+```text
+TELEGRAM_BOT_TOKEN=VALOR_LOCAL_DEL_BOT
+TELEGRAM_CHAT_ID=ID_LOCAL_DEL_CHAT
+```
+
+Verificar `chmod 600 /etc/skillmatch-ai/email-monitor.env`. El monitor rechaza
+permisos que permitan acceso al grupo u otros usuarios. No introducir estas
+variables en `.env.prod`, Docker Compose ni las unidades systemd.
+
+Primero enviar una alerta de prueba y ejecutar ambas comprobaciones manuales:
+
+```bash
+cd /srv/apps/skillmatch-ai
+sudo -u deploy python3 ops/email_monitor.py test
+sudo -u deploy python3 ops/email_monitor.py api
+sudo -u deploy python3 ops/email_monitor.py outbox
+```
+
+La prueba debe llegar al chat. Si alguna comprobación detecta un problema,
+puede enviar una alerta real; revisar `email-worker`, Brevo y los conteos antes
+de activar los temporizadores. La consulta directa al contenedor también sirve
+para inspeccionar el JSON sin credenciales en la salida:
+
+```bash
+sudo docker compose --env-file .env.prod --env-file .env.deploy \
+  -f docker-compose.prod.yml -f docker-compose.prod.override.yml \
+  exec -T backend python -m app.commands.email_diagnostics outbox
+```
+
+Instalar las unidades después de la prueba:
+
+```bash
+sudo install -m 644 ops/systemd/skillmatch-email-api.service /etc/systemd/system/
+sudo install -m 644 ops/systemd/skillmatch-email-api.timer /etc/systemd/system/
+sudo install -m 644 ops/systemd/skillmatch-email-outbox.service /etc/systemd/system/
+sudo install -m 644 ops/systemd/skillmatch-email-outbox.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now skillmatch-email-api.timer skillmatch-email-outbox.timer
+systemctl list-timers 'skillmatch-email-*'
+```
+
+Para revisar ejecución y detener la automatización:
+
+```bash
+sudo journalctl -u skillmatch-email-api.service -u skillmatch-email-outbox.service --since today
+sudo systemctl disable --now skillmatch-email-api.timer skillmatch-email-outbox.timer
+```
+
+Tras instalarla, probar una recuperación de contraseña con una cuenta de prueba:
+confirmar que la fila de outbox llega a `sent`, que el correo se recibe en el
+buzón controlado y que no aparece ninguna alerta. No consultar ni registrar el
+token ni el contenido del mensaje.
+
+La comprobación diaria confirma que la clave de Brevo responde; no confirma
+entrega en bandeja. Una prueba sintética con buzón controlado sería una fase
+posterior. Si cae el VPS completo, sus temporizadores tampoco pueden alertar;
+eso requiere un monitor externo. No se monitorizan SMTP ni MCP porque la
+aplicación no los utiliza. Las unidades no forman parte del despliegue
+automático y deben instalarse manualmente en el VPS.
+
+## 19. Checklist final
 
 - [ ] El registro crea un usuario pendiente.
 - [ ] El email-worker envia el correo de verificacion.

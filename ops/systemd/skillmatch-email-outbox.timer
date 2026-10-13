@@ -1,0 +1,11 @@
+[Unit]
+Description=SkillMatch AI email outbox check every five minutes
+
+[Timer]
+OnCalendar=*-*-* *:00/5:00
+Persistent=true
+Unit=skillmatch-email-outbox.service
+
+[Install]
+WantedBy=timers.target
+

@@ -1,0 +1,12 @@
+[Unit]
+Description=SkillMatch AI email outbox check
+After=docker.service
+
+[Service]
+Type=oneshot
+User=deploy
+WorkingDirectory=/srv/apps/skillmatch-ai
+UMask=0077
+ExecStart=/usr/bin/python3 /srv/apps/skillmatch-ai/ops/email_monitor.py outbox
+TimeoutStartSec=90
+
