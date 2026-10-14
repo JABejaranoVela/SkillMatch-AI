@@ -130,8 +130,9 @@ entorno local.
   atribucion y URL original, y trata InfoJobs como integracion opcional.
 - El feedback ya queda estructurado para una fase supervisada futura, pero aun no hay
   evidencia suficiente para afirmar mejora predictiva.
-- Antes de una operacion a mayor escala faltan observabilidad, backups probados,
-  politica completa para CV/cuentas y evaluacion con pares CV-oferta etiquetados.
+- Antes de una operacion a mayor escala faltan metricas y monitorizacion externa
+  del VPS, restauracion probada de backups, politica completa para CV/cuentas y
+  evaluacion con pares CV-oferta etiquetados.
 
 ## Funcionalidades Actuales
 
@@ -149,6 +150,7 @@ entorno local.
 - Perfil y ajustes de cuenta.
 - Guards Angular y dependencias FastAPI para usuarios verificados.
 - Configuracion Docker separada para desarrollo y produccion.
+- Monitor de Brevo y `email_outbox` en el VPS con alertas por Telegram.
 
 ## Stack
 
@@ -307,18 +309,21 @@ docker compose exec backend pytest -q
 docker compose exec backend ruff check app tests
 
 cd frontend
-npm install
+npm ci
 npm run test:ci
 npm run build
+
+cd ../ops
+python -m unittest test_email_monitor -v
 ```
 
-Estado validado el 23 de junio de 2026:
+Comprobaciones registradas el 14 de octubre de 2026:
 
-- 178 pruebas backend superadas.
-- 52 pruebas Angular superadas.
-- Build Angular y lint backend correctos.
-- `npm audit --omit=dev` sin vulnerabilidades de produccion.
-- Alembic alineado con los modelos.
+- 181 pruebas backend en el contenedor de desarrollo y 62 pruebas Angular superadas.
+- 8 pruebas del monitor superadas con diagnosticos y Telegram simulados.
+- Build Angular, Ruff 0.17, `pip check` y `alembic check` correctos.
+- `npm audit --omit=dev --audit-level=high`: 0 vulnerabilidades tras actualizar
+  Angular a 20.3.32.
 
 ## Despliegue en producción
 
@@ -348,6 +353,13 @@ checks.
 El mismo pipeline puede ejecutarse manualmente con `workflow_dispatch`. En esta
 fase no hay rollback ni restauracion automatica de PostgreSQL.
 
+El VPS ejecuta un monitor de correo independiente del despliegue automatico:
+comprueba la API HTTP de Brevo cada dia y `email_outbox` cada cinco minutos.
+Alerta por fallos de envio, retrasos, worker detenido o consultas imposibles y
+avisa cuando se recuperan los estados transitorios. Su configuracion de Telegram
+permanece solo en el VPS. La instalacion, comprobaciones y limites estan en
+[docs/deployment-vps.md](docs/deployment-vps.md#18-monitor-de-correo-y-alertas-telegram).
+
 - Guia principal del CI/CD: [docs/ci-cd-production.md](docs/ci-cd-production.md).
 - Operacion del VPS: [docs/deployment-vps.md](docs/deployment-vps.md).
 
@@ -358,6 +370,7 @@ backend/       API, modelos, migraciones y servicios
 frontend/      Aplicacion Angular
 data/          Diccionario, taxonomia y datos semilla
 docs/          Documentacion tecnica
+ops/           Monitor de correo y unidades systemd del VPS
 docker/        PostgreSQL y Nginx
 storage/       CVs locales, excluidos de Git
 tests/         Pruebas backend

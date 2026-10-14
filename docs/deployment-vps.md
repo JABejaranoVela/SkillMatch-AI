@@ -581,7 +581,8 @@ solo estados e IDs de `email_outbox`. No envía correos ni modifica la cola. La
 salida JSON no contiene destinatarios, tokens, payloads ni respuestas de Brevo.
 
 El monitor del host ejecuta dos comprobaciones: API una vez al día a las 08:00
-(hora local del VPS) y outbox cada cinco minutos. Detecta nuevos `failed`,
+(hora local del VPS, UTC en la verificación del 14 de octubre de 2026) y outbox
+cada cinco minutos. Detecta nuevos `failed`,
 `pending` vencidos más de diez minutos, `sending` abandonados según
 `EMAIL_WORKER_STALE_MINUTES`, worker detenido y consultas imposibles. Envía un
 aviso por incidente y otro al recuperarse los estados transitorios. Un `failed`
@@ -593,7 +594,36 @@ en `/srv/data/skillmatch-ai/tmp/email-monitor-state.json` con permisos privados.
 Crear el bot con BotFather y obtener el ID del chat de alertas. Guardar ambos
 valores **solo en el VPS**; evitar incluir el token en comandos, URLs del
 historial de shell o logs. El usuario `deploy` debe conservar el permiso
-`sudo -n docker` descrito en la guia de CI/CD.
+`sudo -n docker` descrito en la guia de CI/CD. En el VPS actual, `install` y
+`systemctl` requieren la contraseña de `sudo`: el operador ejecuta esos pasos
+en su propia sesión, sin compartir la contraseña.
+
+Para obtener el ID de un chat privado, abrir el bot en Telegram, pulsar
+**Iniciar** y enviar `/start`. Desde PowerShell, introducir el token mediante
+un prompt oculto y mostrar solo los IDs recibidos por `getUpdates`:
+
+```powershell
+$secure = Read-Host 'Token del bot' -AsSecureString
+$ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+try {
+  $token = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
+  $updates = Invoke-RestMethod -Method Post `
+    -Uri ("https://api.telegram.org/bot{0}/getUpdates" -f $token) `
+    -Body @{ limit = 100; timeout = 0 } -ErrorAction Stop
+  $updates.result | ForEach-Object {
+    if ($_.message) { $_.message.chat.id }
+  } | Sort-Object -Unique
+} catch {
+  Write-Host 'No se pudo consultar getUpdates.'
+} finally {
+  [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
+  Remove-Variable token -ErrorAction SilentlyContinue
+}
+```
+
+Si no aparece el ID, enviar otro mensaje al bot. `getUpdates` no funciona
+mientras el bot tenga un webhook activo. No guardar el JSON completo ni poner
+el token en una URL del navegador. Ver la [Bot API de Telegram](https://core.telegram.org/bots/api#getupdates).
 
 ```bash
 sudo install -d -m 700 -o deploy -g deploy /etc/skillmatch-ai
@@ -646,6 +676,16 @@ sudo systemctl enable --now skillmatch-email-api.timer skillmatch-email-outbox.t
 systemctl list-timers 'skillmatch-email-*'
 ```
 
+Comprobar además `systemctl is-enabled` y `systemctl is-active` para ambos
+temporizadores. Los servicios son de tipo `oneshot`; entre ejecuciones pueden
+figurar como `inactive`, pero su último `Result` debe ser `success` y
+`ExecMainStatus` debe valer `0`:
+
+```bash
+systemctl show skillmatch-email-api.service skillmatch-email-outbox.service \
+  -p Id -p Result -p ExecMainStatus -p ActiveState --no-pager
+```
+
 Para revisar ejecución y detener la automatización:
 
 ```bash
@@ -657,6 +697,27 @@ Tras instalarla, probar una recuperación de contraseña con una cuenta de prueb
 confirmar que la fila de outbox llega a `sent`, que el correo se recibe en el
 buzón controlado y que no aparece ninguna alerta. No consultar ni registrar el
 token ni el contenido del mensaje.
+
+### Puesta en marcha verificada el 14 de octubre de 2026
+
+- La imagen desplegada correspondía al commit `7960e78`; frontend y API pública
+  respondieron HTTP 200, backend/frontend/db estaban saludables y `email-worker`
+  seguía activo.
+- El diagnóstico de `GET /v3/account` de Brevo devolvió HTTP 200. Las 8 pruebas
+  del monitor con diagnósticos y Telegram simulados pasaron; las pruebas de
+  respuestas HTTP de Brevo están en `tests/test_email_diagnostics.py`.
+- El archivo local de Telegram y el estado de deduplicación tenían permisos
+  `600`; el directorio de estado, `700`. El token y el ID del chat no se
+  incorporaron al repositorio ni se imprimieron durante las comprobaciones.
+- El usuario confirmó la recepción de dos mensajes: alerta de prueba y aviso
+  inicial por tres filas `failed` existentes. Esas filas permanecen; el monitor
+  conserva sus IDs para no repetir el mismo aviso en cada ciclo.
+- Ambos temporizadores quedaron `enabled` y `active`. La ejecución automática de
+  outbox de las 10:45 UTC terminó con `Result=success` y `ExecMainStatus=0`;
+  su siguiente ejecución quedó programada cinco minutos después.
+- Se solicitó una recuperación de contraseña con cuenta de prueba. El correo
+  llegó al buzón y el contador `sent` subió de 2 a 3. Había cero `pending`,
+  cero `sending`, cero pendientes vencidos y cero envíos abandonados.
 
 La comprobación diaria confirma que la clave de Brevo responde; no confirma
 entrega en bandeja. Una prueba sintética con buzón controlado sería una fase

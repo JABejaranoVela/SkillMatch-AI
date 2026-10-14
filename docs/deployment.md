@@ -1,7 +1,8 @@
 # Despliegue de SkillMatch AI
 
-Este documento describe la configuracion Docker de produccion inicial. No incluye
-HTTPS real, dominio definitivo ni operacion completa de infraestructura.
+Este documento describe la configuracion Docker de produccion inicial. El estado
+real del VPS, su HTTPS, despliegue automatico y monitor de correo se documentan
+en [deployment-vps.md](deployment-vps.md).
 
 Para el primer despliegue controlado/staging en VPS con Nginx host, Certbot,
 HTTPS y UFW, seguir `docs/staging-runbook.md`.
@@ -22,7 +23,8 @@ HTTPS y UFW, seguir `docs/staging-runbook.md`.
 - PostgreSQL no publica puerto al host.
 - Backend y `email-worker` son servicios separados.
 - Angular se sirve como build estatico desde Nginx.
-- Las migraciones se ejecutan manualmente.
+- Compose no ejecuta migraciones por sí solo. En el VPS, el pipeline las ejecuta
+  tras el backup predeploy; en un despliegue manual deben ejecutarse aparte.
 - Swagger/OpenAPI queda deshabilitado en `ENVIRONMENT=production`.
 
 Las imagenes de desarrollo y produccion usan tags separados para evitar que un
@@ -184,13 +186,13 @@ desarrollo y tests.
 
 Pasos operativos:
 
-1. Crear una API key SMTP/API en Brevo.
+1. Crear una clave API v3 de Brevo; la aplicacion envia mediante HTTP, no SMTP.
 2. Configurar `BREVO_API_KEY` en `.env.prod`.
 3. Configurar `EMAIL_FROM` con un remitente verificado, por ejemplo:
    `SkillMatch AI <noreply@TU_DOMINIO_VERIFICADO>`.
 4. Verificar el dominio o remitente en Brevo.
-5. Configurar SPF, DKIM y DMARC en DNS. Esto queda como requisito operativo
-   pendiente antes de enviar correo real a usuarios.
+5. Verificar SPF, DKIM y DMARC en DNS antes de abrir el servicio a usuarios
+   reales; su estado no se audito en la comprobacion del 14 de octubre de 2026.
 
 Checklist DNS y Brevo:
 
@@ -469,12 +471,13 @@ docker compose -f docker-compose.prod.yml build
 
 ## Limitaciones pendientes
 
-- HTTPS y certificados reales.
-- Dominio definitivo.
-- Backups automatizados y restauracion probada.
-- Monitorizacion y alertas.
+El VPS productivo ya tiene dominio, HTTPS, backups predeploy y monitor de correo
+con Telegram. Queda pendiente:
+
+- Restauracion probada de backups y monitor externo para detectar caida total del VPS.
+- Metricas operativas mas amplias y prueba sintetica periodica de entrega a buzon.
 - Cola durable para tareas de busqueda y procesamiento.
-- SPF, DKIM y DMARC configurados y verificados en DNS.
+- Auditoria documentada de SPF, DKIM y DMARC en DNS.
 - CSP mas estricta tras validar todos los assets.
 - Hardening completo de infraestructura.
 - Limites de recursos por contenedor ajustados a la maquina real.

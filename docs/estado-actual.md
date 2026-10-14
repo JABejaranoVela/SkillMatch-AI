@@ -1,6 +1,6 @@
 # Estado Actual
 
-Actualizado: 23 de junio de 2026.
+Actualizado: 14 de octubre de 2026.
 
 ## Producto Implementado
 
@@ -16,6 +16,8 @@ Actualizado: 23 de junio de 2026.
 - `EmailService` desacoplado con consola, fake de tests y Brevo API.
 - `email_outbox` con payload Fernet, token asociado, intentos y ultimo error.
 - Worker separado con recuperacion de filas abandonadas y reintentos escalonados.
+- Diagnostico de solo lectura de la API HTTP de Brevo y `email_outbox`.
+- Monitor del VPS con alertas Telegram, deduplicacion y avisos de recuperacion.
 - Rate limiting persistente en PostgreSQL para flujos sensibles.
 - Limpieza operativa de sesiones, tokens, outbox, buckets y estados abandonados.
 - Subida de CV solo PDF con limite de 10 MB.
@@ -77,11 +79,13 @@ Actualizado: 23 de junio de 2026.
 
 ## Calidad Verificada
 
-- 178 pruebas backend superadas.
-- 52 pruebas Angular superadas.
-- Ruff sin errores.
+- 181 pruebas backend en el contenedor de desarrollo y 62 pruebas Angular superadas
+  en la validacion local previa al despliegue del commit `7960e78`.
+- 8 pruebas del monitor superadas con diagnosticos y Telegram simulados.
+- Ruff 0.17 sin errores con las reglas configuradas explicitamente.
 - `pip check` sin conflictos.
-- `npm audit --omit=dev` sin vulnerabilidades de produccion.
+- `npm audit --omit=dev --audit-level=high` sin vulnerabilidades de produccion
+  tras actualizar Angular a 20.3.32.
 - Build Angular correcto.
 - Alembic alineado: `alembic check` sin nuevas operaciones.
 - Docker Compose de desarrollo y produccion validan correctamente.
@@ -95,16 +99,28 @@ Actualizado: 23 de junio de 2026.
 
 ## Estado De Despliegue
 
-El repositorio esta listo para un primer despliegue controlado/staging, no para
-apertura amplia a usuarios reales.
+La aplicacion esta desplegada en el VPS de produccion para uso controlado.
+El 14 de octubre de 2026 se verificaron frontend y API publica con HTTP 200,
+contenedores backend/frontend/db saludables y `email-worker` activo. La imagen
+desplegada correspondia al commit `7960e78`.
+
+El monitor de Brevo y correo quedo instalado con ambos temporizadores `systemd`
+activos. La API de Brevo respondio HTTP 200, Telegram entrego la alerta de prueba
+y la alerta por tres filas `failed` preexistentes, y la comprobacion automatica de
+outbox termino con exito. Una recuperacion de contrasena con cuenta de prueba
+llego al buzon y aumento el contador `sent` de 2 a 3; no habia `pending`,
+`sending`, atrasos ni envios abandonados. Las tres filas `failed` historicas
+permanecen para revision, sin haberse borrado ni reintentado manualmente.
+
+Esto verifica una entrega puntual. El monitor comprueba la clave de Brevo y el
+estado de la cola, pero no mide la llegada continua a bandeja ni puede avisar si
+el VPS completo deja de funcionar. Ver [operacion del VPS](deployment-vps.md#18-monitor-de-correo-y-alertas-telegram).
 
 Pendientes operativos antes de usuarios reales:
 
-- Dominio o subdominio real.
-- HTTPS real validado.
-- Brevo con API key real fuera del repositorio.
-- SPF, DKIM y DMARC.
-- Backups generados y restauracion probada.
-- Monitorizacion y alertas.
+- Verificar documentalmente SPF, DKIM y DMARC; no se auditaron en esta revision.
+- Probar la restauracion de backups y establecer un monitor externo del VPS.
+- Ampliar las metricas operativas y, si se necesita medir entrega continua,
+  incorporar una prueba sintetica con buzon controlado.
 - Revision legal/RGPD.
 - Politica final de retencion y eliminacion completa de cuenta.

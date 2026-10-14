@@ -81,6 +81,21 @@ El worker recupera filas `sending` abandonadas tras el umbral configurado. Cance
 mensajes si el token fue usado, caduco, se invalido o ya no coincide con su hash.
 Tras enviar, fallar definitivamente o cancelar, elimina el payload cifrado.
 
+## Monitorizacion De Correo En Produccion
+
+El VPS ejecuta `ops/email_monitor.py` mediante dos temporizadores `systemd`.
+Una comprobacion diaria consulta la API HTTP de Brevo con
+`backend/app/commands/email_diagnostics.py`; otra revisa cada cinco minutos
+los estados de `email_outbox` y si `email-worker` esta activo. El diagnostico
+solo lee datos y devuelve estados, conteos e IDs, sin destinatarios ni payloads.
+
+El monitor envia alertas por Telegram cuando falla la API de Brevo, se detiene
+el worker, no puede consultarse la cola, aparecen nuevos `failed`, hay
+`pending` vencidos mas de diez minutos o un `sending` queda abandonado.
+Deduplica los incidentes y avisa de la recuperacion de los estados transitorios.
+El token del bot y el chat se configuran solo en el host, fuera de Git y de
+Docker Compose. Ver [operacion del VPS](deployment-vps.md#18-monitor-de-correo-y-alertas-telegram).
+
 ## Flujo De CV
 
 1. El usuario ve un aviso informativo de tratamiento del CV en frontend.
@@ -152,6 +167,8 @@ desglose de pesos. La version del algoritmo evita mezclar resultados incompatibl
 - `BackgroundTasks` no sustituye una cola distribuida.
 - La entrega de correo es al menos una vez: una caida despues de aceptar Brevo y
   antes del commit puede provocar un duplicado.
+- La comprobacion diaria de Brevo valida la clave API, no la entrega en bandeja.
+  Los temporizadores del propio VPS no pueden avisar si el VPS completo cae.
 - La rotacion de `EMAIL_PAYLOAD_ENCRYPTION_KEY` requiere vaciar o migrar payloads
   pendientes.
 - `TRUST_PROXY_HEADERS` solo es seguro si el backend esta aislado detras de un proxy

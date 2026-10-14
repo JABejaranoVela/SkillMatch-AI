@@ -29,6 +29,8 @@ Datos del entorno:
 | Script | `scripts/deploy-production.sh` |
 
 El sistema no implementa rollback ni restauracion automatica de PostgreSQL.
+El monitor de Brevo y `email_outbox` se instaló manualmente en el host y se
+opera por separado del pipeline; ver [despliegue en VPS](deployment-vps.md#18-monitor-de-correo-y-alertas-telegram).
 
 ## 2. Arquitectura
 
@@ -449,6 +451,24 @@ correctas, repetir primero el job fallido. Si se repite, revisar `VPS_HOST`, UFW
 firewall Hostinger, disponibilidad del puerto 22 y conectividad del proveedor.
 
 `Enable debug logging` solo amplia los logs; no corrige la conectividad.
+
+### Validaciones bloqueadas en octubre de 2026
+
+Una ejecución anterior al commit `7960e78` superó las pruebas del backend y
+frontend, pero se detuvo en dos controles posteriores:
+
+- `ruff check` devolvió 66 errores al instalarse una versión nueva de Ruff con
+  más reglas por defecto. `backend/pyproject.toml` declara ahora explícitamente
+  las reglas `E4`, `E7`, `E9` y `F`; la comprobación con Ruff 0.17 pasó.
+- `npm audit --omit=dev --audit-level=high` detectó 4 vulnerabilidades altas
+  en el árbol de dependencias anterior. Los paquetes Angular se actualizaron
+  conjuntamente a 20.3.32 y se regeneró `frontend/package-lock.json`; una
+  instalación limpia y la auditoría local terminaron con 0 vulnerabilidades.
+
+`build-and-push` y `deploy` se omitieron en aquella ejecución porque dependían
+de ambos jobs de validación. No fue un fallo de arranque del VPS. Después se
+observó en producción la imagen del commit correctivo `7960e78`, con los
+contenedores saludables y los endpoints públicos respondiendo HTTP 200.
 
 ## 14. Estado validado
 

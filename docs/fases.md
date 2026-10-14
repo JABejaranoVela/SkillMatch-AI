@@ -72,12 +72,16 @@
 - Rate limiting persistente sin Redis.
 - Retencion de sesiones, tokens, outbox y buckets con comando de limpieza.
 - Worker robustecido ante filas legacy y payloads invalidos.
+- Despliegue automatico productivo por GitHub Actions y GHCR, con backup
+  predeploy y comprobaciones de salud.
+- Monitor de Brevo y `email_outbox` en el VPS con alertas Telegram y dos
+  temporizadores `systemd`, verificado el 14 de octubre de 2026.
 
 Pendiente para una operacion madura:
 
 - Borrado completo de cuenta y retencion completa de datos personales.
-- Metricas, alertas y backups restaurados periodicamente.
-- Pipeline de despliegue productivo.
+- Metricas operativas mas amplias y monitor externo para caida total del VPS.
+- Restauracion de backups probada y repetida periodicamente.
 
 ## 10. Aprendizaje Supervisado - Futuro
 
