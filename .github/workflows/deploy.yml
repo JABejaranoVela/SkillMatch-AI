@@ -1,142 +1,86 @@
-name: Validate, build and deploy production
+name: Deploy a production release
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Published Release Please tag (vX.Y.Z)
+        required: true
+        type: string
+
+permissions: {}
 
 concurrency:
   group: skillmatch-production
   cancel-in-progress: false
 
 jobs:
-  validate-ref:
+  validate-release:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: read
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      sha: ${{ steps.release.outputs.sha }}
     steps:
-      - name: Require main branch
-        if: github.ref != 'refs/heads/main'
-        run: |
-          echo "Production deployments are only allowed from main." >&2
-          exit 1
-
-  backend-tests:
-    needs: validate-ref
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    services:
-      postgres:
-        image: pgvector/pgvector:pg16
+      - name: Require an enabled release deployment from main
         env:
-          POSTGRES_DB: skillmatch_test
-          POSTGRES_USER: skillmatch_test
-          POSTGRES_PASSWORD: skillmatch_ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -h 127.0.0.1 -U skillmatch_test -d skillmatch_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    env:
-      DATABASE_URL: postgresql+psycopg://skillmatch_test:skillmatch_ci@127.0.0.1:5432/skillmatch_test
-      ENVIRONMENT: test
-      EMAIL_PROVIDER: fake
-      EMBEDDINGS_ENABLED: "false"
-      SKILL_NER_ENABLED: "false"
-    steps:
-      - name: Checkout repository
+          PRODUCTION_RELEASES_ENABLED: ${{ vars.PRODUCTION_RELEASES_ENABLED }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" != workflow_dispatch || "$GITHUB_REF" != refs/heads/main ||
+                "$PRODUCTION_RELEASES_ENABLED" != true ]]; then
+            echo "Production release deployment is disabled or was requested outside main." >&2
+            exit 1
+          fi
+
+      - name: Checkout repository and tags
         uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: backend/pyproject.toml
+          fetch-depth: 0
+          persist-credentials: false
 
-      - name: Install backend and test tools
-        working-directory: backend
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ".[dev]"
-          python -c "import app; print('app import OK')"
-
-      - name: Apply test database migrations
-        working-directory: backend
+      - name: Verify the published release and its merged PR
+        id: release
         env:
-          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
-        run: |
-          docker exec -i "$POSTGRES_CONTAINER" psql -X -v ON_ERROR_STOP=1 -U skillmatch_test -d skillmatch_test < ../docker/postgres/test-init.sql
-          export SKILLMATCH_UPLOAD_TEST_DATABASE_URL="$DATABASE_URL"
-          python ../tests/backend_test_database.py
-          alembic upgrade head
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_PLEASE_APP_BOT: ${{ vars.RELEASE_PLEASE_APP_BOT }}
+        run: bash scripts/verify-release.sh
 
-      - name: Run backend tests
-        working-directory: backend
-        run: |
-          export SKILLMATCH_UPLOAD_TEST_DATABASE_URL="$DATABASE_URL"
-          python -m pytest -q tests ../tests
-
-      - name: Run Ruff
-        working-directory: backend
-        run: ruff check app tests ../tests
-
-      - name: Check Python dependencies
-        run: python -m pip check
-
-      - name: Check Alembic alignment
-        working-directory: backend
-        run: alembic check
-
-  frontend-tests:
-    needs: validate-ref
-    runs-on: ubuntu-latest
+  quality-checks:
+    needs: validate-release
     permissions:
       contents: read
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install frontend dependencies
-        run: npm ci
-
-      - name: Run frontend tests
-        run: npm run test:ci
-
-      - name: Build frontend
-        run: npm run build
-
-      - name: Audit production dependencies
-        run: npm audit --omit=dev --audit-level=high
+    uses: ./.github/workflows/ci.yml
+    with:
+      source_sha: ${{ needs.validate-release.outputs.sha }}
 
   build-and-push:
-    needs: [backend-tests, frontend-tests]
+    needs: [validate-release, quality-checks]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    outputs:
+      backend_digest: ${{ steps.backend.outputs.digest }}
+      frontend_digest: ${{ steps.frontend.outputs.digest }}
+    env:
+      RELEASE_TAG: ${{ needs.validate-release.outputs.tag }}
+      RELEASE_SHA: ${{ needs.validate-release.outputs.sha }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ needs.validate-release.outputs.sha }}
 
       - name: Prepare image metadata
         shell: bash
         run: |
           echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
-          echo "SHORT_SHA=${GITHUB_SHA:0:12}" >> "$GITHUB_ENV"
+          echo "IMAGE_TAG=${RELEASE_TAG}-${RELEASE_SHA}-${GITHUB_RUN_ID}.${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_ENV"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -149,42 +93,41 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push backend
+        id: backend
         uses: docker/build-push-action@v6
         with:
           context: .
           file: backend/Dockerfile.prod
           push: true
-          tags: |
-            ghcr.io/${{ env.OWNER_LC }}/skillmatch-ai-backend:${{ github.sha }}
-            ghcr.io/${{ env.OWNER_LC }}/skillmatch-ai-backend:${{ env.SHORT_SHA }}
-            ghcr.io/${{ env.OWNER_LC }}/skillmatch-ai-backend:main
+          tags: ghcr.io/${{ env.OWNER_LC }}/skillmatch-ai-backend:${{ env.IMAGE_TAG }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.revision=${{ env.RELEASE_SHA }}
+            org.opencontainers.image.version=${{ env.RELEASE_TAG }}
           cache-from: type=gha,scope=backend-production
           cache-to: type=gha,mode=max,scope=backend-production
 
       - name: Build and push frontend
+        id: frontend
         uses: docker/build-push-action@v6
         with:
           context: .
           file: frontend/Dockerfile.prod
           push: true
-          tags: |
-            ghcr.io/${{ env.OWNER_LC }}/skillmatch-ai-frontend:${{ github.sha }}
-            ghcr.io/${{ env.OWNER_LC }}/skillmatch-ai-frontend:${{ env.SHORT_SHA }}
-            ghcr.io/${{ env.OWNER_LC }}/skillmatch-ai-frontend:main
+          tags: ghcr.io/${{ env.OWNER_LC }}/skillmatch-ai-frontend:${{ env.IMAGE_TAG }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.revision=${{ env.RELEASE_SHA }}
+            org.opencontainers.image.version=${{ env.RELEASE_TAG }}
           cache-from: type=gha,scope=frontend-production
           cache-to: type=gha,mode=max,scope=frontend-production
 
   deploy:
-    needs: build-and-push
+    needs: [validate-release, build-and-push]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    environment: production
     permissions:
-      contents: read
       packages: read
     env:
       VPS_HOST: ${{ secrets.VPS_HOST }}
@@ -192,16 +135,24 @@ jobs:
       VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
       VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
       GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      DEPLOY_SHA: ${{ github.sha }}
+      RELEASE_TAG: ${{ needs.validate-release.outputs.tag }}
+      DEPLOY_SHA: ${{ needs.validate-release.outputs.sha }}
+      BACKEND_DIGEST: ${{ needs.build-and-push.outputs.backend_digest }}
+      FRONTEND_DIGEST: ${{ needs.build-and-push.outputs.frontend_digest }}
       GITHUB_ACTOR_NAME: ${{ github.actor }}
     steps:
-      - name: Validate deployment secrets
+      - name: Validate production configuration and image digests
+        env:
+          PRODUCTION_ENV_READY: ${{ vars.PRODUCTION_ENV_READY }}
         shell: bash
         run: |
+          test "$PRODUCTION_ENV_READY" = true
           test -n "$VPS_HOST"
           test -n "$VPS_USER"
           test -n "$VPS_SSH_KEY"
           test -n "$VPS_KNOWN_HOSTS"
+          [[ "$BACKEND_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$FRONTEND_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
 
       - name: Configure SSH
         shell: bash
@@ -216,11 +167,12 @@ jobs:
         run: echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
 
       - name: Log in to GHCR on VPS with ephemeral credentials
+        id: ghcr-login
         shell: bash
         run: |
-          AUTH_DIR="/dev/shm/skillmatch-ghcr-${GITHUB_RUN_ID}"
+          AUTH_DIR="/dev/shm/skillmatch-ghcr-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           ssh -i "$HOME/.ssh/id_ed25519" -o BatchMode=yes -o StrictHostKeyChecking=yes \
-            "$VPS_USER@$VPS_HOST" "rm -rf '$AUTH_DIR' && install -d -m 700 '$AUTH_DIR'"
+            "$VPS_USER@$VPS_HOST" "umask 077 && mkdir -- '$AUTH_DIR'"
           printf '%s' "$GHCR_TOKEN" | \
             ssh -i "$HOME/.ssh/id_ed25519" -o BatchMode=yes -o StrictHostKeyChecking=yes \
               "$VPS_USER@$VPS_HOST" \
@@ -229,30 +181,22 @@ jobs:
       - name: Deploy immutable images
         shell: bash
         run: |
-          AUTH_DIR="/dev/shm/skillmatch-ghcr-${GITHUB_RUN_ID}"
+          AUTH_DIR="/dev/shm/skillmatch-ghcr-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           ssh -i "$HOME/.ssh/id_ed25519" -o BatchMode=yes -o StrictHostKeyChecking=yes \
-            "$VPS_USER@$VPS_HOST" bash -s -- "$DEPLOY_SHA" "$OWNER_LC" "$AUTH_DIR" <<'REMOTE'
+            "$VPS_USER@$VPS_HOST" bash -s -- "$RELEASE_TAG" "$DEPLOY_SHA" "$OWNER_LC" "$AUTH_DIR" "$BACKEND_DIGEST" "$FRONTEND_DIGEST" <<'REMOTE'
           set -Eeuo pipefail
-          DEPLOY_SHA="$1"
-          OWNER_LC="$2"
-          AUTH_DIR="$3"
-
           cd /srv/apps/skillmatch-ai
-          git diff --quiet
-          git diff --cached --quiet
-          git fetch --prune origin main
-          git checkout main
-          git merge --ff-only origin/main
-          test "$(git rev-parse HEAD)" = "$DEPLOY_SHA"
-
-          DOCKER_CONFIG="$AUTH_DIR" bash scripts/deploy-production.sh "$DEPLOY_SHA" "$OWNER_LC"
+          git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main "refs/tags/$1:refs/tags/$1"
+          test "$(git rev-parse "refs/tags/$1^{commit}")" = "$2"
+          git merge-base --is-ancestor "$2" refs/remotes/origin/main
+          git show "$2:scripts/deploy-release.sh" | bash -s -- "$@"
           REMOTE
 
       - name: Remove ephemeral GHCR credentials
-        if: always()
+        if: always() && steps.ghcr-login.outcome != 'skipped'
         shell: bash
         run: |
-          AUTH_DIR="/dev/shm/skillmatch-ghcr-${GITHUB_RUN_ID}"
+          AUTH_DIR="/dev/shm/skillmatch-ghcr-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           ssh -i "$HOME/.ssh/id_ed25519" -o BatchMode=yes -o StrictHostKeyChecking=yes \
             "$VPS_USER@$VPS_HOST" \
             "docker --config '$AUTH_DIR' logout ghcr.io >/dev/null 2>&1 || true; rm -rf '$AUTH_DIR'" \

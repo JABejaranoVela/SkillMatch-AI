@@ -355,15 +355,15 @@ incluir datos personales.
 
 ## Production CI/CD
 
-El despliegue automatico de produccion esta operativo mediante
-[GitHub Actions](.github/workflows/deploy.yml). Cada push a `main` valida backend
-y frontend, construye las imagenes en GitHub Actions y las publica en GHCR con
-tags por SHA. El VPS solo descarga las imagenes, crea un backup predeploy de
-PostgreSQL, ejecuta Alembic, actualiza los contenedores y comprueba los health
-checks.
+GitHub Actions valida los pushes a `development` y las PR hacia `development`
+o `main`. Release Please prepara una PR con la versión global y el changelog.
+Tras fusionarla, crea el tag y la GitHub Release. El despliegue se solicita
+desde `main` para ese tag y requiere aprobar el entorno `production`.
 
-El mismo pipeline puede ejecutarse manualmente con `workflow_dispatch`. En esta
-fase no hay rollback ni restauracion automatica de PostgreSQL.
+El pipeline valida el SHA publicado, construye las imágenes y despliega por
+digest. El VPS conserva el backup predeploy y ejecuta Alembic y los health
+checks. La activación inicial y el rollback manual se describen en la guía
+de CI/CD.
 
 El VPS ejecuta un monitor de correo independiente del despliegue automatico:
 comprueba la API HTTP de Brevo cada dia y `email_outbox` cada cinco minutos.

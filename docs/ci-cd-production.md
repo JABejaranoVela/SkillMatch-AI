@@ -25,7 +25,7 @@ Datos del entorno:
 | Usuario | `deploy` |
 | Proyecto | `/srv/apps/skillmatch-ai` |
 | Backups | `/srv/backups/skillmatch-ai/postgres` |
-| Workflow | `.github/workflows/deploy.yml` |
+| Workflows | [CI](../.github/workflows/ci.yml), [releases](../.github/workflows/release.yml) y [despliegue](../.github/workflows/deploy.yml) |
 | Script | `scripts/deploy-production.sh` |
 
 El sistema no implementa rollback ni restauracion automatica de PostgreSQL.
@@ -34,20 +34,31 @@ opera por separado del pipeline; ver [despliegue en VPS](deployment-vps.md#18-mo
 
 ## 2. Arquitectura
 
+La CI valida los pushes a `development` y las Pull Requests con destino a
+`development` o `main`. Ejecuta las pruebas de backend, frontend y monitor
+con permisos de lectura. Las PR también validan el título Conventional Commit.
+
+Un push a `main` puede actualizar la PR de Release Please o publicar el tag y
+la GitHub Release de una PR de release fusionada. La publicación de imágenes
+y el despliegue empiezan con una solicitud manual independiente desde `main`.
+
 ```text
-push main / workflow_dispatch
+workflow_dispatch en main (tag publicado)
         |
         v
-GitHub Actions
-  |-- backend-tests
-  |-- frontend-tests
-  `-- build-and-push
+validate-release
+  |
+  v
+quality-checks (backend, frontend, monitor)
+  |
+  v
+build-and-push
              |
              v
-       GHCR (tags SHA)
+       GHCR (versión, SHA y digest)
              |
              v
-deploy por SSH -> VPS -> docker compose pull
+aprobación en production -> SSH -> docker compose pull por digest
                          |
                          v
               backup -> Alembic -> up -d
@@ -64,9 +75,12 @@ Nginx continua siendo el unico punto de entrada publico:
 
 ## 3. Jobs del workflow
 
-### `validate-ref`
+### `validate-release`
 
-Impide desplegar produccion desde una referencia distinta de `main`.
+Exige que el despliegue esté habilitado, un tag SemVer estable en `main`, una
+GitHub Release publicada por el bot y su PR de Release Please fusionada.
+El tag debe coincidir con el manifiesto y `version.txt` del mismo commit.
+`quality-checks` repite las pruebas sobre el SHA verificado antes del build.
 
 ### `backend-tests`
 
@@ -92,37 +106,123 @@ Tambien conserva su nombre, aunque actua como validacion completa:
 3. Construye el frontend.
 4. Ejecuta `npm audit --omit=dev --audit-level=high`.
 
+### `monitor-tests`
+
+Ejecuta las pruebas unitarias de `ops/test_email_monitor.py` con diagnósticos
+y Telegram simulados. También ejecuta las regresiones de despliegue y de
+procedencia de releases con Git, Docker y GitHub simulados. Comprueba
+`bash`, `flock` y `jq` antes de arrancar esas pruebas. Si falta una herramienta
+o falla una prueba, el job falla también.
+
 ### `build-and-push`
 
 Docker Buildx construye y publica:
 
 ```text
-ghcr.io/<owner>/skillmatch-ai-backend:<sha>
-ghcr.io/<owner>/skillmatch-ai-frontend:<sha>
+ghcr.io/<owner>/skillmatch-ai-backend:vX.Y.Z-<sha>-<run_id>.<run_attempt>
+ghcr.io/<owner>/skillmatch-ai-frontend:vX.Y.Z-<sha>-<run_id>.<run_attempt>
 ```
 
-El owner se obtiene de GitHub y se normaliza a minusculas. Cada imagen recibe:
-
-- SHA completo;
-- SHA corto de 12 caracteres;
-- tag `main`.
-
-`email-worker` reutiliza la imagen backend. El despliegue usa el SHA completo,
-no el tag mutable `main`.
+Las etiquetas OCI registran la versión y el SHA completo. Cada intento tiene
+un tag de imagen distinto. El VPS descarga los digests emitidos por Buildx y
+`email-worker` reutiliza el digest del backend.
 
 ### `deploy`
 
-1. Valida los secrets requeridos.
-2. Configura SSH usando `VPS_KNOWN_HOSTS`.
-3. Inicia sesion temporalmente en GHCR mediante `GITHUB_TOKEN` y
-   `--password-stdin`.
-4. Ejecuta `git fetch`, `git checkout main` y `git merge --ff-only`.
-5. Comprueba que `HEAD` coincide con `DEPLOY_SHA`.
-6. Ejecuta `scripts/deploy-production.sh`.
-7. Ejecuta `docker logout` y elimina las credenciales temporales.
+Tras aprobar el entorno `production`, el job comprueba su configuración y
+se conecta al VPS por SSH. Comprueba de nuevo el tag contra `origin/main`,
+selecciona el SHA exacto con un checkout separado de la rama y ejecuta
+`scripts/deploy-release.sh`. Un bloqueo local serializa los intentos mientras
+se ejecuta `deploy-production.sh`.
 
-La configuracion GHCR temporal se guarda en `/dev/shm` y no persiste tras el
-job.
+El registro en `/srv/backups/skillmatch-ai/postgres/.release-deployments` conserva
+versión, SHA y ambos digests. Un reintento solo se acepta sin aplicar cambios
+si corresponde a la última release completada, los contenedores siguen
+ejecutando sus imágenes, `.env.deploy` contiene esos mismos digests y no existe
+un registro `pending`. El checkout del VPS también debe estar limpio y en el
+SHA exacto del recibo. Una discrepancia de Git bloquea el reintento y requiere
+reconciliación manual. El script verifica los contenedores y la configuración
+guardada antes de registrar la finalización del despliegue.
+
+Antes del primer intento de cada release, el script guarda en
+`<tag>.previous-env` los digests de los contenedores en ejecución. El snapshot
+no se sobrescribe al reintentar. Un intento interrumpido conserva `pending` y
+bloquea nuevos despliegues. Antes de archivar ese marcador, reconcilia los
+contenedores, Alembic, el backup y los health checks. Si los contenedores aún
+sirven la release anterior, restaura o repara `.env.deploy` con los digests
+comprobados del recibo anterior o del snapshot. Si Git quedó en el SHA del
+intento fallido, conserva las modificaciones inesperadas y restaura el
+checkout al SHA exacto de la release recuperada con `git checkout --detach`.
+Usa el SHA del recibo de esa release o el SHA verificado del despliegue previo
+si todavía no hay un recibo. Comprueba que `git rev-parse --verify HEAD`
+devuelve ese SHA y que `git status --porcelain=v1 --untracked-files=all` queda
+vacío. Verifica también que las referencias de `.env.deploy` coincidan con
+las imágenes en ejecución y que Compose acepte la configuración con ese
+checkout. Archiva `pending` solo después de esas comprobaciones. Para
+reintentar la misma release, los contenedores deben volver a coincidir con
+el snapshot original. Si no puedes verificar los digests o el checkout
+recuperado, detén la operación y conserva `pending`.
+
+El script etiqueta localmente ambos digests del snapshot antes del despliegue
+y los de la release activa antes de cerrar `pending`. Usa las etiquetas
+`skillmatch-retained/backend:sha256-<hex>` y
+`skillmatch-retained/frontend:sha256-<hex>`, y compara el ID de cada etiqueta
+con el del digest local. Esto protege las imágenes incluso en el almacén
+clásico de Docker. Si falla la verificación de rollback, el despliegue se
+detiene y conserva el estado previo. Antes de un rollback manual, verifica la
+compatibilidad del esquema y que los IDs de las etiquetas locales correspondan
+a los digests del snapshot. Para una recuperación sin GHCR, usa esas imágenes
+locales con Compose configurado para no descargar ni construir imágenes.
+
+#### Limpieza manual de imágenes obsoletas
+
+Comprueba el espacio con `sudo -n docker system df -v` antes del despliegue.
+En el almacén clásico, quitar una etiqueta puede eliminar también digests
+del mismo repositorio. Las etiquetas `skillmatch-retained/…` pertenecen a
+repositorios distintos de las referencias GHCR, por lo que quitar la etiqueta
+local puede dejar el digest y la imagen en disco. Verifica el resultado con
+el almacén instalado. [Docker Image Remove](https://docs.docker.com/reference/cli/docker/image/rm/)
+· [Implementación del almacén clásico](https://github.com/moby/moby/blob/v28.5.2/daemon/images/image_delete.go#L129-L159)
+
+1. En una sesión de mantenimiento autorizada, mantén el mismo bloqueo
+   `flock` del despliegue sobre
+   `/srv/backups/skillmatch-ai/postgres/.release-deployments/lock` durante toda
+   la revisión y retirada. Si existe `pending` o no puedes adquirir el
+   bloqueo, pospón la limpieza hasta reconciliar el estado.
+2. Elige una release obsoleta desde su recibo. Para cada servicio, inventaría
+   el ID completo y todas sus referencias locales con
+   `sudo -n docker image inspect --format '{{.Id}} {{json .RepoTags}} {{json .RepoDigests}}' REF`.
+   Comprueba que la etiqueta de retención y la referencia exacta
+   `ghcr.io/…@sha256:…` corresponden al mismo ID. Registra también el espacio
+   ocupado antes de retirar referencias.
+3. Protege los IDs de la release activa según contenedores, `.env.deploy` y
+   recibo, y los del último rollback válido y sus snapshots. Incluye todos
+   los contenedores del host, también los detenidos que puedan usarse para
+   recuperación. Usa `sudo -n docker ps -aq` para enumerarlos e inspecciona
+   su campo `.Image`. Resuelve los digests protegidos a IDs de imagen para
+   detectar referencias diferentes que compartan el mismo ID. Si falta
+   información o cualquier referencia del candidato comparte un ID
+   protegido, conserva la imagen y todas sus referencias.
+4. Para un ID confirmado como obsoleto, retira únicamente su etiqueta local
+   autorizada con `sudo -n docker image rm --no-prune "$etiqueta_obsoleta"`.
+   Reinspecciona el ID y, si permanece el digest GHCR obsoleto, verifica que
+   aún apunta al mismo ID antes de retirarlo con
+   `sudo -n docker image rm --no-prune "$digest_obsoleto"`, donde la variable
+   contiene la referencia completa `repositorio@sha256:…`. Conserva
+   cualquier otro alias hasta revisarlo individualmente. Ante conflictos,
+   detente y vuelve a comprobar el inventario. No uses `--force` ni un
+   `prune` global.
+5. Comprueba que las referencias retiradas ya no existen, si el ID sigue
+   presente y cuánto cambió `sudo -n docker system df -v`. Distingue la
+   retirada de un alias de la eliminación efectiva de la imagen. Las capas
+   compartidas y las referencias conservadas pueden seguir ocupando espacio.
+
+Las regresiones del despliegue se ejecutan en Linux con `bash`, `flock`, `jq` y
+`python -B -m unittest discover -s ops -p 'test_*release.py' -v`.
+Las pruebas simulan Git, Docker y los cambios de estado en directorios temporales.
+
+La configuración temporal de GHCR se guarda en `/dev/shm` por intento y el
+workflow intenta retirarla al terminar.
 
 ## 4. Comportamiento del script de despliegue
 
@@ -139,14 +239,64 @@ job.
 9. Ejecuta `alembic upgrade head` con la imagen backend recien descargada.
 10. Ejecuta `docker compose up -d --no-build`.
 11. Comprueba backend, frontend y endpoints publicos.
-12. Ejecuta solamente `docker image prune -f`.
 
-No elimina volumenes, `/srv/data`, uploads o backups. Tampoco restaura la base de
-datos ni revierte contenedores.
+La limpieza de imágenes se gestiona por etiqueta de retención. El script
+conserva las imágenes locales, los volúmenes, uploads y backups.
 
-## 5. Secrets de GitHub Actions
+## 5. Activación y protección en GitHub
 
-Configurar en `Settings > Secrets and variables > Actions`:
+Mantén `RELEASE_AUTOMATION_ENABLED` y `PRODUCTION_RELEASES_ENABLED` sin definir
+durante la primera integración en `main`. Antes de fusionar, comprueba que no
+haya ejecuciones antiguas de despliegue pendientes. El nuevo workflow de
+producción solo acepta `workflow_dispatch` desde `main` y ningún push publica
+imágenes ni despliega.
+
+1. En **Settings → Rules → Rulesets**, protege `main` con PR obligatoria,
+   checks requeridos `pr-title`, `backend-tests`, `frontend-tests` y
+   `monitor-tests`, rama actualizada antes del merge y bloqueo de borrado y
+   force-push. Evita excepciones que permitan escribir directamente en
+   `main`. Confirma los nombres tras observar los checks reales de GitHub
+   Actions. Integra `development` con merge para conservar su historial de
+   commits convencionales y sincroniza después `main` de vuelta.
+2. En **Settings → Environments**, crea `production` con acceso solo a la
+   rama `main`. Añade al desarrollador como revisor requerido, deja sin
+   marcar **Prevent self-review** y deshabilita el bypass de administradores.
+   Configura `PRODUCTION_ENV_READY=true` como variable del entorno, después
+   de verificar la protección.
+3. Mueve los cuatro secretos de VPS que aparecen abajo al ámbito del entorno
+   `production` y retira las copias de nivel repositorio u organización. La
+   protección depende de esa migración. Una PR interna que cambie YAML puede
+   referenciar secretos de repositorio mientras sigan allí.
+4. En **Settings → Actions → General**, permite que GitHub Actions cree PR.
+   Release Please usa `GITHUB_TOKEN`. Si GitHub deja la CI de la PR del bot
+   pendiente de autorización, apruébala desde la PR y verifica sus cuatro
+   checks. Si la configuración no ofrece esa aprobación, detén la release
+   hasta autorizar una GitHub App acotada al repositorio. Al configurar la
+   credencial de esa App en Release Please, registra también el login exacto
+   de su bot en la variable de repositorio `RELEASE_PLEASE_APP_BOT`. El
+   verificador admite ese login y `github-actions[bot]`, y exige que la
+   release y su PR procedan de la misma identidad. Coordina el cambio de
+   credencial entre releases. La App real y su credencial quedan pendientes.
+   Los eventos de release no disparan el despliegue.
+5. La revisión automática de PR incluye el título, Ruff, pruebas y la
+   auditoría npm. Habilita después el análisis nativo de GitHub CodeQL para
+   Python y JavaScript/TypeScript y verifica su ejecución antes de exigir
+   su resultado en el ruleset.
+
+La versión global se mantiene en `version.txt` y el manifiesto de Release
+Please. `0.0.0` indica que aún no existe una release gestionada. La primera
+versión propuesta es `0.1.0` y el changelog se genera a partir de los commits
+Conventional Commit. El tag identifica el conjunto backend, frontend y monitor.
+
+Para la primera release, habilita solo `RELEASE_AUTOMATION_ENABLED=true` como
+variable de repositorio y deja que la siguiente integración revisada en `main`
+prepare la PR. Verifica su versión, changelog, título y checks. Al autorizar su
+merge, comprueba que se crea una única Release `v0.1.0` sin publicación de
+imágenes. Finalmente habilita `PRODUCTION_RELEASES_ENABLED=true` como variable
+de repositorio y, cuando se autorice producción, selecciona el tag en
+**Deploy a production release**. Revisa los checks y aprueba `production`.
+
+Configura estos secretos solo en el entorno `production`.
 
 | Secret | Formato |
 |---|---|
