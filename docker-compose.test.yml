@@ -1,0 +1,63 @@
+services:
+  cv-test-db:
+    image: pgvector/pgvector:pg16
+    pull_policy: never
+    environment:
+      POSTGRES_DB: skillmatch_test
+      POSTGRES_USER: skillmatch_test
+      POSTGRES_HOST_AUTH_METHOD: trust
+    tmpfs:
+      - /var/lib/postgresql/data:size=384m
+    volumes:
+      - ./docker/postgres/test-init.sql:/docker-entrypoint-initdb.d/test-init.sql:ro
+    networks: [backend-test]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "skillmatch_test", "-d", "skillmatch_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  backend:
+    image: skillmatch-ai-backend:dev
+    pull_policy: never
+    read_only: true
+    working_dir: /suite/backend
+    environment:
+      DATABASE_URL: &test_database postgresql+psycopg://skillmatch_test@cv-test-db:5432/skillmatch_test
+      SKILLMATCH_UPLOAD_TEST_DATABASE_URL: *test_database
+      ENVIRONMENT: test
+      EMAIL_PROVIDER: fake
+      EMBEDDINGS_ENABLED: "false"
+      SKILL_NER_ENABLED: "false"
+      PYTHONPATH: /suite/backend
+      PYTHONDONTWRITEBYTECODE: "1"
+      UPLOAD_DIR: /tmp/skillmatch-resumes
+    tmpfs:
+      - /tmp:size=256m
+    volumes:
+      - ./backend/app:/suite/backend/app:ro
+      - ./backend/alembic:/suite/backend/alembic:ro
+      - ./backend/alembic.ini:/suite/backend/alembic.ini:ro
+      - ./backend/pyproject.toml:/suite/backend/pyproject.toml:ro
+      - ./backend/tests:/suite/backend/tests:ro
+      - ./tests:/suite/tests:ro
+      - ./data/skills:/suite/backend/data/skills:ro
+    networks: [backend-test]
+    depends_on:
+      cv-test-db:
+        condition: service_healthy
+    command:
+      - sh
+      - -ec
+      - |
+        python ../tests/backend_test_database.py
+        alembic upgrade head
+        python -m pytest -q -p no:cacheprovider tests ../tests
+        ruff check --no-cache app tests ../tests
+        python -m pip check
+        alembic current
+        alembic check
+
+networks:
+  backend-test:
+    internal: true

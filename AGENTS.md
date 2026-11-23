@@ -44,13 +44,28 @@ Stack principal:
 
 ## Validaciones
 
-Backend:
+### Backend
+
+Ejecuta desde la raíz con Docker local en modo contenedores Linux, Docker Compose v2 y las
+imágenes locales `skillmatch-ai-backend:dev` y `pgvector/pgvector:pg16`. Si faltan, prepara
+la imagen backend con `docker build -t skillmatch-ai-backend:dev ./backend` y obtén PostgreSQL
+con `docker pull pgvector/pgvector:pg16`.
 
 ```bash
-docker compose exec backend pytest -q
-docker compose exec backend ruff check app tests
-docker compose exec backend python -m pip check
-docker compose exec backend alembic check
+docker compose -p skillmatch-backend-test -f docker-compose.test.yml up --force-recreate --exit-code-from backend
+```
+
+El comando verifica la identidad y la marca de la base desechable, aplica las migraciones,
+ejecuta `backend/tests` y `tests`, y comprueba Ruff, las dependencias Python y Alembic. Devuelve
+el código de salida del backend de pruebas. PostgreSQL y los CV usan memoria temporal. Los
+contenedores se comunican por una red privada del proyecto de pruebas.
+Usa este nombre de proyecto para una sola ejecución a la vez.
+
+Al terminar, incluso si falla una comprobación o interrumpes la ejecución, retira los
+contenedores y la red de pruebas con este comando:
+
+```bash
+docker compose -p skillmatch-backend-test -f docker-compose.test.yml down
 ```
 
 Frontend:

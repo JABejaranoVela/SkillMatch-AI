@@ -304,10 +304,22 @@ InfoJobs es opcional. Para activarlo, configure
 
 ## Pruebas
 
-```bash
-docker compose exec backend pytest -q
-docker compose exec backend ruff check app tests
+Desde la raíz del repositorio, ejecuta las [validaciones del backend](AGENTS.md#backend)
+con el entorno aislado de [Docker Compose](docker-compose.test.yml).
 
+```bash
+docker compose -p skillmatch-backend-test -f docker-compose.test.yml up --force-recreate --exit-code-from backend
+```
+
+Al terminar, retira el entorno de pruebas incluso si alguna comprobación falla:
+
+```bash
+docker compose -p skillmatch-backend-test -f docker-compose.test.yml down
+```
+
+Para validar el frontend y el monitor, ejecuta desde la raíz:
+
+```bash
 cd frontend
 npm ci
 npm run test:ci

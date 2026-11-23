@@ -4,6 +4,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy import delete, select, update
+from sqlalchemy.exc import DBAPIError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_active_user
@@ -15,7 +16,7 @@ from app.models.resume import Resume
 from app.models.user import User
 from app.schemas.resume import ProfileRead, ResumeRead
 from app.services.cv_processing.processor import ResumeProcessingError, process_resume
-from app.services.cv_processing.storage import save_resume_file
+from app.services.cv_processing.storage import discard_upload, save_resume_file
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -29,18 +30,54 @@ def upload_resume(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_active_user)],
 ) -> Resume:
-    stored = save_resume_file(file, current_user.id)
-    resume = Resume(
-        user_id=current_user.id,
-        filename=stored.original_filename,
-        file_path=stored.path,
-        file_type=stored.extension,
-        is_active=False,
-    )
-    db.add(resume)
-    db.commit()
+    user_id = current_user.id
+    stored = save_resume_file(file, user_id)
+    try:
+        resume = Resume(
+            user_id=user_id,
+            filename=stored.original_filename,
+            file_path=stored.path,
+            file_type=stored.extension,
+            is_active=False,
+        )
+        db.add(resume)
+        db.flush()
+    except Exception:
+        # COMMIT has not been attempted, even if the connection is already lost.
+        discard_upload(Path(stored.path))
+        db.rollback()
+        raise
+
+    try:
+        db.commit()
+    except Exception as exc:
+        try:
+            db.rollback()
+            # A lost connection during COMMIT can leave the outcome unknown.
+            if _commit_outcome_unknown(exc):
+                logger.warning("Resume commit outcome uncertain; file retained")
+            elif db.scalar(
+                select(Resume.id).where(Resume.user_id == user_id, Resume.file_path == stored.path)
+            ) is None:
+                discard_upload(Path(stored.path))
+        except SQLAlchemyError:
+            logger.warning("Could not verify resume commit; file retained")
+        raise
     db.refresh(resume)
     return resume
+
+
+def _commit_outcome_unknown(exc: Exception) -> bool:
+    if not isinstance(exc, DBAPIError):
+        return False
+    sqlstate = getattr(exc.orig, "sqlstate", None)
+    # Class 08 covers connection errors; 40003 means statement completion unknown.
+    return (
+        exc.connection_invalidated
+        or not sqlstate
+        or sqlstate.startswith("08")
+        or sqlstate == "40003"
+    )
 
 
 @router.get("", response_model=list[ResumeRead])
