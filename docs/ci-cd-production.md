@@ -278,10 +278,8 @@ imágenes ni despliega.
    release y su PR procedan de la misma identidad. Coordina el cambio de
    credencial entre releases. La App real y su credencial quedan pendientes.
    Los eventos de release no disparan el despliegue.
-5. La revisión automática de PR incluye el título, Ruff, pruebas y la
-   auditoría npm. Habilita después el análisis nativo de GitHub CodeQL para
-   Python y JavaScript/TypeScript y verifica su ejecución antes de exigir
-   su resultado en el ruleset.
+5. Verifica CodeQL en las dos ramas y en una PR de fork antes de añadir
+   su regla al ruleset. El procedimiento figura en la sección 5.1.
 
 La versión global se mantiene en `version.txt` y el manifiesto de Release
 Please. `0.0.0` indica que aún no existe una release gestionada. La primera
@@ -309,6 +307,60 @@ Para este VPS, `VPS_HOST` contiene solo `72.62.235.87`. No debe incluir
 `http://`, `ssh://`, `deploy@` ni `:22`.
 
 No copiar secrets en issues, commits, logs o documentacion.
+
+### 5.1. Verificar CodeQL Advanced Setup y proteger el merge
+
+[El workflow de CodeQL](../.github/workflows/codeql.yml) analiza Python,
+JavaScript/TypeScript y los workflows de GitHub Actions con las consultas
+estándar. Se ejecuta en pushes y PR hacia `development` y `main`. Los martes
+a las 04:23 UTC repite el análisis de la rama predeterminada una vez que el
+workflow esté integrado en ella. Cada lenguaje conserva su propia categoría.
+
+1. Antes de publicar, comprueba en **Settings → Advanced Security → Code
+   scanning** que Default Setup está desactivado y que ninguna otra integración
+   envía resultados CodeQL para estas ramas. Usa el workflow versionado como
+   única configuración. Mantén desactivadas las variables de release y producción
+   durante el piloto.
+2. Tras un push autorizado a `development`, abre **Actions → CodeQL** y verifica
+   que los tres jobs terminan y que el paso **Analyze and upload results** sube
+   los resultados. En **Security and quality → Code scanning**, comprueba la
+   herramienta, la rama, el commit analizado y las categorías `/language:python`,
+   `/language:javascript-typescript` y `/language:actions`. Revisa también
+   la cobertura de archivos y los avisos de extracción de cada lenguaje.
+3. Comprueba una PR interna hacia `development`, una de fork público hacia
+   `development` y una PR abierta de `development` hacia `main`. Usa un cambio
+   inocuo y actualiza la PR para verificar una segunda revisión. En **Checks**,
+   confirma los tres resultados para el merge de prueba que GitHub asocia a la
+   última revisión. El evento `pull_request` admite la carga de resultados del
+   fork con su token restringido. Si GitHub pide aprobación para ejecutar el
+   workflow de un colaborador externo, revisa el diff antes de autorizarlo.
+   Mantén los permisos predeterminados del fork. El piloto termina con las PR
+   abiertas o cerradas sin fusionar. El workflow antiguo de `main` puede seguir
+   desplegando por push hasta integrar la transición de CI/CD.
+4. Para ensayar el bloqueo antes de exigirlo en `main`, usa un repositorio
+   público desechable con el mismo workflow, las mismas ramas y ejemplos
+   sintéticos de los tres lenguajes. Aplica allí la regla del paso siguiente.
+   Usa una muestra inerte que produzca una alerta High en el diff. Comprueba que
+   bloquea el merge y que al corregirla en la misma PR se levanta el bloqueo.
+   Si un análisis falla o falta una categoría, investiga la ejecución antes
+   de aceptar el resultado.
+5. Tras la primera integración autorizada, verifica la línea base de los tres
+   lenguajes en el push a `main`. Una vez validado el piloto, edita **Protect main**
+   en **Settings → Rules → Rulesets**. Añade **Require code scanning results**,
+   elige **CodeQL**, fija el umbral de alertas de seguridad en **High or higher**
+   y deja las alertas sin severidad de seguridad fuera del bloqueo automático.
+   Conserva los cuatro checks de CI del punto 1 de la sección 5. La regla
+   evalúa los hallazgos que GitHub atribuye al diff de la PR. Un job verde
+   acredita que terminó el análisis y puede coexistir con una alerta bloqueante.
+
+Las alertas nuevas **High** y **Critical** bloquean la integración con esa
+regla. Revisa manualmente las **Medium**, **Low**, las de calidad y las alertas
+preexistentes en la rama. Prioriza las que afecten a sesiones, acceso a CV o
+permisos de workflows. Para descartar un falso positivo, registra en la alerta
+la razón y la evidencia del flujo revisado.
+
+[Protección de merge con CodeQL](https://docs.github.com/en/code-security/concepts/code-scanning/merge-protection)
+· [Permisos de carga en PR](https://docs.github.com/en/code-security/reference/code-scanning/troubleshoot-analysis-errors/resource-not-accessible)
 
 ## 6. Crear la clave SSH de CI desde Windows
 
