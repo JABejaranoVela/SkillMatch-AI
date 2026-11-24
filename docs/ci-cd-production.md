@@ -367,6 +367,65 @@ la razón y la evidencia del flujo revisado.
 [Protección de merge con CodeQL](https://docs.github.com/en/code-security/concepts/code-scanning/merge-protection)
 · [Permisos de carga en PR](https://docs.github.com/en/code-security/reference/code-scanning/troubleshoot-analysis-errors/resource-not-accessible)
 
+### 5.2. Seguridad de dependencias
+
+[Dependency security](../.github/workflows/dependency-security.yml) ejecuta
+Dependency Review en PR hacia `development` y `main`. El job falla cuando
+GitHub atribuye a una dependencia introducida un aviso High o Critical de
+producción, desarrollo o ámbito desconocido. Durante el piloto el check
+queda fuera del ruleset. Conserva la auditoría npm de producción y
+`pip check` de CI para detectar avisos npm ya presentes e incompatibilidades
+de paquetes Python, respectivamente.
+
+En esas PR y en pushes a `development`, `pip-audit` analiza tres inventarios:
+
+| Perfil | Entorno inventariado |
+| --- | --- |
+| `ci-dev` | Python 3.12 en un entorno desechable que reproduce la instalación editable `.[dev]` de CI. |
+| `production` | Imagen local efímera de `backend/Dockerfile.prod` con `pip install .`. Incluye los extras que el proyecto declara en sus dependencias de runtime, como `fastapi[standard]`, `psycopg[binary]` y `pwdlib[argon2]`. |
+| `dev-ner` | Imagen local efímera de `backend/Dockerfile` con `.[dev,ner]`. |
+
+El auditor se instala en un entorno separado y consulta PyPI para las
+versiones exactas obtenidas con `pip inspect --local`. El inventario de las
+imágenes se obtiene sin red y sin arrancar la aplicación. Los artefactos incluyen
+las versiones instaladas, el resultado, el SHA de código y el ID local de
+la imagen cuando procede. Se excluye el paquete propio del contraste con
+PyPI y se señalan las distribuciones de URL directa como no comprobadas.
+El alcance son las distribuciones Python. La auditoría de una imagen
+efímera tiene valor para ese ID. Un eventual control de publicación debe
+auditar la misma imagen que vaya a publicar, porque los rangos pueden
+resolverse de forma distinta en otro build.
+
+- `clean` acredita que se auditaron todas las distribuciones externas del
+  perfil y no se informaron avisos conocidos.
+- `findings` indica un informe completo con avisos. El job informativo
+  termina correctamente y conserva los IDs en `audit.json`. El recuento
+  del resumen deduplica por distribución e ID de aviso.
+- `incomplete` indica un fallo de preparación, consulta o cobertura. El
+  job falla y el resumen señala la falta de evidencia. Si hay un informe
+  parcial, consérvalo para diagnosticar qué distribuciones quedaron fuera.
+
+**Prueba en GitHub.** Confirma el grafo en **Insights → Dependency graph**
+y en **Settings → Advanced Security** comprueba por separado las alertas de
+Dependabot y las actualizaciones automáticas de seguridad. Para el piloto,
+mantén las alertas activas y las actualizaciones desactivadas. Las PR de
+seguridad de Dependabot apuntan a la rama predeterminada `main`. Evita
+fusionarlas mientras siga vigente allí el despliegue anterior por push.
+
+Cuando se autorice publicar el workflow, abre una PR documental hacia
+`development` y comprueba Dependency Review y los tres perfiles en el SHA
+analizado. En una rama de ensayo, comprueba también una dependencia añadida
+con un aviso High en un manifiesto declarativo que no se instale, y repite
+la comprobación después de corregir el manifiesto. Valida separadamente un
+informe Python limpio, uno con avisos y uno incompleto. Confirma que el
+grafo reconoce los manifiestos esperados antes de interpretar un diff vacío.
+Tras observar los resultados en ambas ramas y en PR de bot y fork, podrá
+proponerse un cambio separado para exigir Dependency Review en `main`.
+
+[Dependency Review](https://github.com/actions/dependency-review-action)
+· [pip-audit](https://github.com/pypa/pip-audit)
+· [Rama predeterminada de las PR de seguridad de Dependabot](https://docs.github.com/en/code-security/tutorials/secure-your-dependencies/customizing-dependabot-prs#targeting-pull-requests-against-a-non-default-branch)
+
 ## 6. Crear la clave SSH de CI desde Windows
 
 En PowerShell:
