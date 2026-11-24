@@ -28,6 +28,30 @@ Stack principal:
 - No romper el entorno de desarrollo.
 - Si hay duda antes de borrar, migrar o simplificar algo, preguntar.
 
+## Code Review Rules
+
+- **Autorización de recursos privados.** Señala cualquier cambio que permita leer,
+  modificar, procesar o borrar un CV, un perfil o un resultado privado sin
+  comprobar en el backend que pertenece al usuario autenticado. La comprobación
+  debe cubrir también los accesos indirectos y las rutas nuevas. En escrituras
+  autenticadas por cookie, conserva la comprobación del origen permitido.
+
+- **Coherencia entre PostgreSQL y los PDF.** Señala los cambios que puedan
+  eliminar un PDF referenciado por una fila confirmada o dejarlo huérfano tras
+  un fallo confirmado del alta. Compensa el fallo confirmado y conserva el
+  archivo cuando el resultado del commit sea indeterminado, hasta que una
+  reconciliación pueda verificar su estado. Para cambios en esta frontera,
+  pide una regresión que distinga ambos resultados.
+
+- **Confianza y consistencia de las releases.** Señala cualquier ruta desde
+  código, entradas o cachés de una PR hacia publicación o producción que
+  eluda la validación del SHA de release o el aislamiento de caché. La
+  validación reutilizada debe ejecutar el SHA autorizado con `cache-mode: none`
+  y los builds privilegiados deben mantenerse fuera de la caché GHA. Antes de
+  aceptar un reintento como exitoso, exige que la release completada, el
+  checkout limpio, la configuración persistida y los digests efectivos
+  coincidan, y que se haya resuelto cualquier despliegue pendiente.
+
 ## Convenciones actuales
 
 - Angular actual: 20.
