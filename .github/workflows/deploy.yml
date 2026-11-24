@@ -50,6 +50,7 @@ jobs:
 
   quality-checks:
     needs: validate-release
+    cache-mode: none
     permissions:
       contents: read
     uses: ./.github/workflows/ci.yml
@@ -60,6 +61,7 @@ jobs:
     needs: [validate-release, quality-checks]
     if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    cache-mode: none
     permissions:
       contents: read
       packages: write
@@ -104,8 +106,6 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ env.RELEASE_SHA }}
             org.opencontainers.image.version=${{ env.RELEASE_TAG }}
-          cache-from: type=gha,scope=backend-production
-          cache-to: type=gha,mode=max,scope=backend-production
 
       - name: Build and push frontend
         id: frontend
@@ -119,8 +119,6 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ env.RELEASE_SHA }}
             org.opencontainers.image.version=${{ env.RELEASE_TAG }}
-          cache-from: type=gha,scope=frontend-production
-          cache-to: type=gha,mode=max,scope=frontend-production
 
   deploy:
     needs: [validate-release, build-and-push]

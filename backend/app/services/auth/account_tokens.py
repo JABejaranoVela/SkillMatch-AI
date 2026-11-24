@@ -22,6 +22,11 @@ def generate_account_token() -> str:
 
 
 def hash_account_token(token: str) -> str:
+    """Store and look up the SHA-256 digest of a server-generated account token.
+
+    Issued tokens contain 48 random bytes. The digest is a verifier for these
+    high-entropy secrets. Password hashing is handled by core.security.
+    """
     return sha256(token.encode()).hexdigest()
 
 

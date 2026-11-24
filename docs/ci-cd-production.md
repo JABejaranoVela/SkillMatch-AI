@@ -81,6 +81,9 @@ Exige que el despliegue esté habilitado, un tag SemVer estable en `main`, una
 GitHub Release publicada por el bot y su PR de Release Please fusionada.
 El tag debe coincidir con el manifiesto y `version.txt` del mismo commit.
 `quality-checks` repite las pruebas sobre el SHA verificado antes del build.
+La llamada reutilizable deshabilita el acceso a la caché de GitHub Actions
+mediante `cache-mode: none` y omite las cachés de pip y npm. La CI de pushes
+y PR mantiene esas cachés.
 
 ### `backend-tests`
 
@@ -126,6 +129,8 @@ ghcr.io/<owner>/skillmatch-ai-frontend:vX.Y.Z-<sha>-<run_id>.<run_attempt>
 Las etiquetas OCI registran la versión y el SHA completo. Cada intento tiene
 un tag de imagen distinto. El VPS descarga los digests emitidos por Buildx y
 `email-worker` reutiliza el digest del backend.
+El job se ejecuta con `cache-mode: none` y Buildx construye ambas imágenes
+sin importar ni exportar caché de GitHub Actions.
 
 ### `deploy`
 
