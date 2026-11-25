@@ -250,6 +250,12 @@ conserva las imágenes locales, los volúmenes, uploads y backups.
 
 ## 5. Activación y protección en GitHub
 
+La [PR #14](https://github.com/JABejaranoVela/SkillMatch-AI/pull/14) completó la
+transición de `main`. Los checks del paso 1 ya son obligatorios. El entorno
+`production` tiene las protecciones, los cuatro secretos del VPS y
+`PRODUCTION_ENV_READY=true` de los pasos 2 y 3. Release Please se habilitó por
+separado con `RELEASE_AUTOMATION_ENABLED=true`.
+
 Mantén `RELEASE_AUTOMATION_ENABLED` y `PRODUCTION_RELEASES_ENABLED` sin definir
 durante la primera integración en `main`. Antes de fusionar, comprueba que no
 haya ejecuciones antiguas de despliegue pendientes. El nuevo workflow de
