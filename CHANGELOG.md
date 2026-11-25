@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.1](https://github.com/JABejaranoVela/SkillMatch-AI/compare/v0.1.0...v0.1.1) (2026-11-25)
+
+
+### Bug Fixes
+
+* **deps:** consolidate frontend security updates ([ef2743c](https://github.com/JABejaranoVela/SkillMatch-AI/commit/ef2743ca4b4d0970dfefb9759bbbb7ac9da19435))
+* **deps:** patch frontend transitive vulnerabilities ([4c38efd](https://github.com/JABejaranoVela/SkillMatch-AI/commit/4c38efd1a06078ceec7a68cd47fa5a2db7e95704))
+* **deps:** promote frontend security updates ([6882947](https://github.com/JABejaranoVela/SkillMatch-AI/commit/6882947b9c26a1a2a5cb1df603c35d6b094eecdb))
+* **deps:** update Angular builder and Vite ([0000d84](https://github.com/JABejaranoVela/SkillMatch-AI/commit/0000d844f04b8b3a88eea7a91c129f8e3f3aa759))
+
 ## 0.1.0 (2026-11-25)
 
 
