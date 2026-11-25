@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import logging
 from pathlib import Path
 from uuid import uuid4
 
@@ -10,6 +11,7 @@ from app.services.cv_processing.extractor import CvValidationError, extract_text
 
 PDF_MIME_TYPES = {"application/pdf"}
 GENERIC_MIME_TYPES = {"", "application/octet-stream", "binary/octet-stream"}
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -48,13 +50,27 @@ def save_resume_file(file: UploadFile, user_id: int) -> StoredResume:
     user_dir.mkdir(parents=True, exist_ok=True)
     destination = user_dir / f"{uuid4().hex}{extension}"
 
-    destination.write_bytes(data)
+    # Only compensate a file created by this upload, even on a name collision.
+    stream = destination.open("xb")
+    try:
+        with stream:
+            stream.write(data)
+    except OSError:
+        discard_upload(destination)
+        raise
 
     return StoredResume(
         original_filename=original_filename,
         path=str(destination),
         extension=extension,
     )
+
+
+def discard_upload(path: Path) -> None:
+    try:
+        path.unlink(missing_ok=True)
+    except OSError:
+        logger.error("Could not remove uncommitted resume file")
 
 
 def _read_upload_with_limit(file: UploadFile) -> bytes:

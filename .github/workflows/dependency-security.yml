@@ -1,0 +1,114 @@
+name: Dependency security
+
+on:
+  pull_request:
+    branches: [development, main]
+  push:
+    branches: [development]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Review changes to dependencies
+        uses: actions/dependency-review-action@bbc44d14a204704ccc493733616cd1e93a0321ec # v5.0.1
+        with:
+          fail-on-severity: high
+          fail-on-scopes: runtime, development, unknown
+          comment-summary-in-pr: never
+
+  python-dependencies:
+    name: Python dependency audit (${{ matrix.profile }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [ci-dev, production, dev-ner]
+    env:
+      AUDIT_PROFILE: ${{ matrix.profile }}
+    steps:
+      - name: Check out reviewed source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+
+      - name: Verify audit report handling
+        run: python -B -m unittest discover -s ops -p test_audit_python_dependencies.py
+
+      - name: Inventory installed distributions
+        shell: bash
+        run: |
+          inventory="$RUNNER_TEMP/pip-inspect.json"
+          case "$AUDIT_PROFILE" in
+            ci-dev)
+              python -m venv "$RUNNER_TEMP/ci-dependencies"
+              ci_python="$RUNNER_TEMP/ci-dependencies/bin/python"
+              "$ci_python" -m pip install --upgrade pip
+              "$ci_python" -m pip install -e './backend[dev]'
+              "$ci_python" -m pip inspect --local > "$inventory"
+              ;;
+            production|dev-ner)
+              image="skillmatch-dependency-audit:$AUDIT_PROFILE"
+              if [[ "$AUDIT_PROFILE" == production ]]; then
+                docker build --tag "$image" --file backend/Dockerfile.prod .
+              else
+                docker build --tag "$image" backend
+              fi
+              docker image inspect --format '{{.Id}}' "$image" > "$RUNNER_TEMP/audit-image-id"
+              docker run --rm --network none --entrypoint python "$image" \
+                -m pip inspect --local > "$inventory"
+              ;;
+          esac
+
+      - name: Audit the inventory with pip-audit
+        shell: bash
+        run: |
+          python -m venv "$RUNNER_TEMP/pip-audit"
+          audit_python="$RUNNER_TEMP/pip-audit/bin/python"
+          "$audit_python" -m pip install 'pip-audit==2.10.1'
+
+          image_args=()
+          if [[ -f "$RUNNER_TEMP/audit-image-id" ]]; then
+            image_args=(--image-id "$(cat "$RUNNER_TEMP/audit-image-id")")
+          fi
+          "$audit_python" ops/audit_python_dependencies.py \
+            --inventory "$RUNNER_TEMP/pip-inspect.json" \
+            --output-dir "$RUNNER_TEMP/python-audit-report" \
+            --profile "$AUDIT_PROFILE" --source-sha "$GITHUB_SHA" "${image_args[@]}"
+
+      - name: Summarize Python audit
+        if: always()
+        shell: bash
+        run: |
+          report="$RUNNER_TEMP/python-audit-report/status.json"
+          {
+            printf '### Python dependency audit (%s)\n\n' "$AUDIT_PROFILE"
+            if [[ -f "$report" ]]; then
+              sed 's/^/    /' "$report"
+            else
+              printf 'Incomplete. Installation or inventory did not produce an audit report.\n'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Python audit evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: python-dependency-audit-${{ matrix.profile }}
+          path: ${{ runner.temp }}/python-audit-report/
+          if-no-files-found: warn
+          retention-days: 14

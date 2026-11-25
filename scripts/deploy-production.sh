@@ -4,6 +4,8 @@ set -Eeuo pipefail
 
 DEPLOY_SHA="${1:-}"
 GHCR_OWNER="${2:-}"
+BACKEND_DIGEST="${3:-}"
+FRONTEND_DIGEST="${4:-}"
 APP_DIR="/srv/apps/skillmatch-ai"
 BACKUP_DIR="/srv/backups/skillmatch-ai/postgres"
 DEPLOY_ENV="${APP_DIR}/.env.deploy"
@@ -44,6 +46,14 @@ retry() {
 
 [[ "${DEPLOY_SHA}" =~ ^[0-9a-f]{40}$ ]] || fail "DEPLOY_SHA must be a full Git SHA"
 [[ "${GHCR_OWNER}" =~ ^[a-z0-9._-]+$ ]] || fail "GHCR owner must be lowercase"
+BACKEND_IMAGE="ghcr.io/${GHCR_OWNER}/skillmatch-ai-backend:${DEPLOY_SHA}"
+FRONTEND_IMAGE="ghcr.io/${GHCR_OWNER}/skillmatch-ai-frontend:${DEPLOY_SHA}"
+if [[ -n "${BACKEND_DIGEST}" || -n "${FRONTEND_DIGEST}" ]]; then
+  [[ "${BACKEND_DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]] || fail "invalid backend digest"
+  [[ "${FRONTEND_DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]] || fail "invalid frontend digest"
+  BACKEND_IMAGE="ghcr.io/${GHCR_OWNER}/skillmatch-ai-backend@${BACKEND_DIGEST}"
+  FRONTEND_IMAGE="ghcr.io/${GHCR_OWNER}/skillmatch-ai-frontend@${FRONTEND_DIGEST}"
+fi
 [[ "$(pwd)" == "${APP_DIR}" ]] || fail "run this script from ${APP_DIR}"
 [[ -f .env.prod ]] || fail ".env.prod is missing"
 [[ -f docker-compose.prod.yml ]] || fail "docker-compose.prod.yml is missing"
@@ -67,14 +77,14 @@ COMPOSE=(
 umask 077
 DEPLOY_ENV_TMP="$(mktemp "${APP_DIR}/.env.deploy.tmp.XXXXXX")"
 cat > "${DEPLOY_ENV_TMP}" <<EOF
-BACKEND_IMAGE=ghcr.io/${GHCR_OWNER}/skillmatch-ai-backend:${DEPLOY_SHA}
-FRONTEND_IMAGE=ghcr.io/${GHCR_OWNER}/skillmatch-ai-frontend:${DEPLOY_SHA}
+BACKEND_IMAGE=${BACKEND_IMAGE}
+FRONTEND_IMAGE=${FRONTEND_IMAGE}
 EOF
 
 [[ "$(wc -l < "${DEPLOY_ENV_TMP}")" -eq 2 ]] || fail "invalid deployment environment"
-grep -Fxq "BACKEND_IMAGE=ghcr.io/${GHCR_OWNER}/skillmatch-ai-backend:${DEPLOY_SHA}" "${DEPLOY_ENV_TMP}" \
+grep -Fxq "BACKEND_IMAGE=${BACKEND_IMAGE}" "${DEPLOY_ENV_TMP}" \
   || fail "invalid backend image reference"
-grep -Fxq "FRONTEND_IMAGE=ghcr.io/${GHCR_OWNER}/skillmatch-ai-frontend:${DEPLOY_SHA}" "${DEPLOY_ENV_TMP}" \
+grep -Fxq "FRONTEND_IMAGE=${FRONTEND_IMAGE}" "${DEPLOY_ENV_TMP}" \
   || fail "invalid frontend image reference"
 mv -f "${DEPLOY_ENV_TMP}" "${DEPLOY_ENV}"
 DEPLOY_ENV_TMP=""
@@ -84,7 +94,7 @@ DEPLOY_ENV_TMP=""
 "${COMPOSE[@]}" pull backend email-worker frontend
 
 # Validate the real bind mount with the user configured in the new backend image.
-"${COMPOSE[@]}" run --rm --no-deps backend \
+"${COMPOSE[@]}" run --rm -T --interactive=false --no-deps backend \
   sh -c 'test -w /app/storage/resumes'
 
 SHORT_SHA="${DEPLOY_SHA:0:12}"
@@ -92,6 +102,8 @@ TIMESTAMP="$(date -u +%Y%m%d_%H%M%S)"
 BACKUP_FILE="${BACKUP_DIR}/skillmatch_predeploy_${TIMESTAMP}_${SHORT_SHA}.sql"
 BACKUP_TMP="${BACKUP_FILE}.tmp"
 
+# PostgreSQL credentials expand inside the database container.
+# shellcheck disable=SC2016
 "${COMPOSE[@]}" exec -T db \
   sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' > "${BACKUP_TMP}"
 [[ -s "${BACKUP_TMP}" ]] || fail "PostgreSQL backup is empty"
@@ -100,7 +112,7 @@ BACKUP_TMP=""
 printf 'Pre-deploy backup created: %s\n' "${BACKUP_FILE}"
 
 # The image was pulled above; Compose must not build on the VPS.
-"${COMPOSE[@]}" run --rm backend alembic upgrade head
+"${COMPOSE[@]}" run --rm -T --interactive=false backend alembic upgrade head
 "${COMPOSE[@]}" up -d --no-build --wait --wait-timeout 180
 "${COMPOSE[@]}" ps
 
@@ -112,8 +124,5 @@ retry 12 5 curl -fsSI https://skillmatch.jabejarano.tech > /dev/null \
   || fail "public frontend health check failed"
 retry 12 5 curl -fsS https://skillmatch.jabejarano.tech/api/v1/health > /dev/null \
   || fail "public API health check failed"
-
-# Conservative cleanup only: no -a, no volumes, no data or backup deletion.
-"${DOCKER[@]}" image prune -f
 
 printf 'Deployment completed for %s\n' "${DEPLOY_SHA}"

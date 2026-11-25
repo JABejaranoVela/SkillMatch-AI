@@ -442,13 +442,17 @@ Advertencias:
 
 ## Validaciones antes de desplegar
 
-Backend:
+Ejecuta las [validaciones del backend](../AGENTS.md#backend) desde la raíz del
+repositorio en tu entorno local.
 
 ```bash
-docker compose exec backend pytest -q
-docker compose exec backend ruff check app tests
-docker compose exec backend python -m pip check
-docker compose exec backend alembic check
+docker compose -p skillmatch-backend-test -f docker-compose.test.yml up --force-recreate --exit-code-from backend
+```
+
+Al terminar, retira el entorno de pruebas incluso si alguna comprobación falla:
+
+```bash
+docker compose -p skillmatch-backend-test -f docker-compose.test.yml down
 ```
 
 Frontend:

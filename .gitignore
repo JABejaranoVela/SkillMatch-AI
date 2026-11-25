@@ -47,6 +47,7 @@ storage/
 postgres_data/
 backups/
 *.sql
+!/docker/postgres/test-init.sql
 *.dump
 *.db
 *.sqlite

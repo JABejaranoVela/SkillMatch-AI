@@ -28,6 +28,30 @@ Stack principal:
 - No romper el entorno de desarrollo.
 - Si hay duda antes de borrar, migrar o simplificar algo, preguntar.
 
+## Code Review Rules
+
+- **Autorización de recursos privados.** Señala cualquier cambio que permita leer,
+  modificar, procesar o borrar un CV, un perfil o un resultado privado sin
+  comprobar en el backend que pertenece al usuario autenticado. La comprobación
+  debe cubrir también los accesos indirectos y las rutas nuevas. En escrituras
+  autenticadas por cookie, conserva la comprobación del origen permitido.
+
+- **Coherencia entre PostgreSQL y los PDF.** Señala los cambios que puedan
+  eliminar un PDF referenciado por una fila confirmada o dejarlo huérfano tras
+  un fallo confirmado del alta. Compensa el fallo confirmado y conserva el
+  archivo cuando el resultado del commit sea indeterminado, hasta que una
+  reconciliación pueda verificar su estado. Para cambios en esta frontera,
+  pide una regresión que distinga ambos resultados.
+
+- **Confianza y consistencia de las releases.** Señala cualquier ruta desde
+  código, entradas o cachés de una PR hacia publicación o producción que
+  eluda la validación del SHA de release o el aislamiento de caché. La
+  validación reutilizada debe ejecutar el SHA autorizado con `cache-mode: none`
+  y los builds privilegiados deben mantenerse fuera de la caché GHA. Antes de
+  aceptar un reintento como exitoso, exige que la release completada, el
+  checkout limpio, la configuración persistida y los digests efectivos
+  coincidan, y que se haya resuelto cualquier despliegue pendiente.
+
 ## Convenciones actuales
 
 - Angular actual: 20.
@@ -44,13 +68,28 @@ Stack principal:
 
 ## Validaciones
 
-Backend:
+### Backend
+
+Ejecuta desde la raíz con Docker local en modo contenedores Linux, Docker Compose v2 y las
+imágenes locales `skillmatch-ai-backend:dev` y `pgvector/pgvector:pg16`. Si faltan, prepara
+la imagen backend con `docker build -t skillmatch-ai-backend:dev ./backend` y obtén PostgreSQL
+con `docker pull pgvector/pgvector:pg16`.
 
 ```bash
-docker compose exec backend pytest -q
-docker compose exec backend ruff check app tests
-docker compose exec backend python -m pip check
-docker compose exec backend alembic check
+docker compose -p skillmatch-backend-test -f docker-compose.test.yml up --force-recreate --exit-code-from backend
+```
+
+El comando verifica la identidad y la marca de la base desechable, aplica las migraciones,
+ejecuta `backend/tests` y `tests`, y comprueba Ruff, las dependencias Python y Alembic. Devuelve
+el código de salida del backend de pruebas. PostgreSQL y los CV usan memoria temporal. Los
+contenedores se comunican por una red privada del proyecto de pruebas.
+Usa este nombre de proyecto para una sola ejecución a la vez.
+
+Al terminar, incluso si falla una comprobación o interrumpes la ejecución, retira los
+contenedores y la red de pruebas con este comando:
+
+```bash
+docker compose -p skillmatch-backend-test -f docker-compose.test.yml down
 ```
 
 Frontend:

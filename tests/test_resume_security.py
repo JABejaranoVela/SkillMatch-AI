@@ -1,17 +1,28 @@
 from io import BytesIO
 from pathlib import Path
+from types import SimpleNamespace
+from uuid import uuid4
 
 import fitz
-from fastapi import HTTPException, UploadFile
+from fastapi import FastAPI, HTTPException, UploadFile
+from fastapi.testclient import TestClient
 import pytest
+from sqlalchemy import select
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import sessionmaker
 from starlette.datastructures import Headers
 
+from app.api.deps import get_active_user
+from app.api.v1.endpoints import resumes
 from app.core.config import settings
+from app.db.session import get_db
 from app.models.resume import Resume, ResumeStatus
-from app.services.cv_processing import processor
+from app.models.user import User
+from app.services.cv_processing import processor, storage
 from app.services.cv_processing.extractor import CvValidationError
 from app.services.cv_processing.processor import ResumeProcessingError, process_resume
 from app.services.cv_processing.storage import save_resume_file
+from backend_test_database import verified_test_engine
 
 
 def make_upload(
@@ -78,6 +89,129 @@ def test_save_resume_accepts_valid_pdf_after_real_validation(tmp_path) -> None:
     assert stored.original_filename == "cv.pdf"
     assert stored.path.startswith(str(tmp_path))
     assert Path(stored.path).read_bytes().startswith(b"%PDF-")
+
+
+def test_save_resume_removes_partial_write(monkeypatch, tmp_path):
+    original_open = Path.open
+
+    class InterruptedWriter:
+        def __init__(self, stream):
+            self.stream = stream
+
+        def __enter__(self):
+            return self
+
+        def write(self, data):
+            self.stream.write(data[:8])
+            raise OSError("interrupted write")
+
+        def __exit__(self, *_):
+            self.stream.close()
+
+    def interrupt_pdf_write(path, mode="r", *args, **kwargs):
+        stream = original_open(path, mode, *args, **kwargs)
+        if path.suffix == ".pdf" and mode in ("wb", "xb"):
+            return InterruptedWriter(stream)
+        return stream
+
+    monkeypatch.setattr(Path, "open", interrupt_pdf_write)
+    with pytest.raises(OSError, match="interrupted write"):
+        save_resume_file(make_upload(make_pdf("Synthetic skills example. " * 4)), 1)
+    assert not list(tmp_path.rglob("*.pdf"))
+
+
+def test_save_resume_preserves_existing_file_on_collision(monkeypatch):
+    name = uuid4()
+    monkeypatch.setattr(storage, "uuid4", lambda: name)
+    original = make_pdf("First synthetic profile. " * 4)
+    stored = save_resume_file(make_upload(original), 1)
+    with pytest.raises(FileExistsError):
+        save_resume_file(make_upload(make_pdf("Second synthetic profile. " * 4)), 1)
+    assert Path(stored.path).read_bytes() == original
+
+
+@pytest.fixture(scope="module")
+def upload_session_factory():
+    try:
+        engine = verified_test_engine()
+    except ValueError as exc:
+        pytest.fail(str(exc), pytrace=False)
+    try:
+        yield sessionmaker(bind=engine, autoflush=False)
+    finally:
+        engine.dispose()
+
+
+@pytest.fixture
+def upload_client(upload_session_factory):
+    with upload_session_factory() as db:
+        user = User(email=f"{uuid4().hex}@example.invalid", hashed_password="unused")
+        db.add(user)
+        db.commit()
+        user_id = user.id
+        app = FastAPI()
+        app.include_router(resumes.router, prefix="/resumes")
+        app.dependency_overrides[get_db] = lambda: db
+        app.dependency_overrides[get_active_user] = lambda: SimpleNamespace(id=user_id)
+        try:
+            with TestClient(app, raise_server_exceptions=False) as client:
+                yield client, db, user_id
+        finally:
+            db.rollback()
+            db.query(Resume).filter_by(user_id=user_id).delete()
+            db.query(User).filter_by(id=user_id).delete()
+            db.commit()
+
+
+@pytest.mark.parametrize(
+    "failure",
+    ["none", "insert", "before_commit", "after_commit", "disconnect", "disconnect_no_row", "refresh"],
+)
+def test_upload_persistence(failure, upload_client, upload_session_factory, monkeypatch, tmp_path):
+    client, db, user_id = upload_client
+    data = make_pdf("Synthetic technical profile. " * 4)
+    # PostgreSQL rejects a filename wider than the existing VARCHAR(255).
+    filename = ("a" * 256 if failure == "insert" else "synthetic") + ".pdf"
+    commit = db.commit
+
+    def interrupt(*_):
+        if failure in ("after_commit", "disconnect"):
+            commit()
+        if failure in ("disconnect", "disconnect_no_row"):
+            raise OperationalError(None, None, OSError(), connection_invalidated=True)
+        raise RuntimeError("simulated interruption")
+
+    with monkeypatch.context() as patch:
+        if failure in ("before_commit", "after_commit", "disconnect", "disconnect_no_row"):
+            patch.setattr(db, "commit", interrupt)
+        elif failure == "refresh":
+            patch.setattr(db, "refresh", interrupt)
+        response = client.post(
+            "/resumes/upload", files={"file": (filename, data, "application/pdf")}
+        )
+
+    assert response.status_code == (201 if failure == "none" else 500)
+    with upload_session_factory() as observer:
+        rows = observer.scalars(select(Resume).where(Resume.user_id == user_id)).all()
+        if failure in ("insert", "before_commit"):
+            assert not rows
+            assert not list(tmp_path.rglob("*.pdf"))
+            return
+        if failure == "disconnect_no_row":
+            assert not rows
+            pdfs = list(tmp_path.rglob("*.pdf"))
+            assert len(pdfs) == 1
+            assert pdfs[0].read_bytes() == data
+            return
+        row, = rows
+        assert Path(row.file_path).read_bytes() == data
+        fetched = client.get(f"/resumes/{row.id}")
+        assert fetched.status_code == 200
+        if failure == "none":
+            assert response.json() == fetched.json()
+            assert response.json()["filename"] == filename
+            assert response.json()["status"] == "uploaded"
+            assert response.json()["is_active"] is False
 
 
 @pytest.mark.parametrize(
